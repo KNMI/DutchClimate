@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 ```{r, Libraries, include=FALSE}
 library(DiagrammeR)
-library(DiagrammeRsvg)
+#library(DiagrammeRsvg)
 library(magrittr)
 library(htmlwidgets)
 library(webshot)
@@ -29,16 +29,16 @@ library(webshot)
 Simple flow chart for a time series plot:
 ```{r, InitialFlowChart, echo=FALSE}
 graph <- DiagrammeR::mermaid('
-  graph RL 
-  Obs("Observations") --> |WDF|A
-  A("Daily Avg") -->|U|B["Data Acquisition"]
-  B --> |WIB|C["Transfomation"]
-  B --> |WGB|Bdata(data)
-  Bdata --> |U|C
-  C --> |WIB|D["Plot"]
-  C --> |WGB|Cdata(data)
-  Cdata --> |U|D
-  D --> |WGB|E["png"]
+  graph RL
+  A["png"] --> |WGB| B
+  B["Plot"] --> |WIB|C
+  B --> |U|Cdata
+  Cdata(data) --> |WGB|C
+  C --> |U|Ddata
+  C["Transfomation"] --> |WIB|D
+  Ddata(data) --> |WGB|D
+  D["Data Acquisition"] -->|U|E("Daily Avg")
+  E --> |WDF|Obs("Observations")
   ')
 saveWidget(graph, 'tmp.html', selfcontained = FALSE)
 webshot('tmp.html',
