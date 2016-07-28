@@ -3,6 +3,7 @@ Example of Reproducible and Reusable Research
 ---------------------------------------------
 
 [![Travis-CI Build Status](https://travis-ci.org/KNMI/DutchClimate.svg?branch=master)](https://travis-ci.org/KNMI/DutchClimate) [![Coverage Status](https://img.shields.io/codecov/c/github/KNMI/DutchClimate/master.svg)](https://codecov.io/github/KNMI/DutchClimate?branch=master)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/KNMI/DutchClimate?branch=master&svg=true)](https://ci.appveyor.com/project/KNMI/DutchClimate)
 
 ### Status of the Dutch climate (DRAFT)
 

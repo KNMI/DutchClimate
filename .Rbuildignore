@@ -6,3 +6,4 @@
 ^tmp\.html$
 ^tmp_files$
 ^\.travis\.yml$
+^appveyor\.yml$
