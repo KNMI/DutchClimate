@@ -2,6 +2,8 @@
 Example of Reproducible and Reusable Research
 ---------------------------------------------
 
+[![Travis-CI Build Status](https://travis-ci.org/KNMI/DutchClimate.svg?branch=master)](https://travis-ci.org/KNMI/DutchClimate) [![Coverage Status](https://img.shields.io/codecov/c/github/KNMI/DutchClimate/master.svg)](https://codecov.io/github/KNMI/DutchClimate?branch=master)
+
 ### Status of the Dutch climate (DRAFT)
 
 Simple flow chart for a time series plot:

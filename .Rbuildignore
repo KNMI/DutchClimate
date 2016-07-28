@@ -5,3 +5,4 @@
 ^tmp_files/$
 ^tmp\.html$
 ^tmp_files$
+^\.travis\.yml$
