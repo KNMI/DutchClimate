@@ -20,11 +20,26 @@ WriteKISRecipe <- function(var, geoIdentifier, period) {
 }
 
 ExecuteKISRecipe <- function(recipeName, period) {
-  url <- 'http://bhlkisdev.knmi.nl:8080/kis/kis/download/table/20110401_000001/20110531_000000/CSV'
+  url <- 'http://bhlkisdev.knmi.nl:8080/kis/kis/download/table/20160901_000001/20160919_000000/CSV'
   destFile <- 'KIStable.csv'
-  download.file(url, destfile, method = "wget",
-                extra = '–header=“Content-Type:application/x-www-form-urlencoded” –post-file=“KIStabel.txt”')
-  fread(destFile)
-  #stop("ExecuteKISRecipe not implemented")
+  download.file(url, destFile, method = "wget",
+                extra = c('--header="Content-Type:application/x-www-form-urlencoded"',
+                          paste0('--post-file="', recipeName, '"'),
+                          '-v'))
+
+  result <- tryCatch(fread(destFile),
+                     warning = function(cond) {
+                       mesage("URL caused a warning")
+                       return(NULL)
+                     },
+                     error = function(cond) {
+                       message("Download failed")
+                       return(NULL)
+                       },
+                     finally = {
+                       file.remove(recipeName)
+                       file.remove(destFile)
+                     })
+  return(result)
 }
 
