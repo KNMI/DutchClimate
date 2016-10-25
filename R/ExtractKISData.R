@@ -14,21 +14,29 @@ KIS <- function(var, geoIdentifier, period) {
            error = function(cond) {
              stop("period does not seem to be suitable")
            })
-  recipeName <- WriteKISRecipe(var, geoIdentifier, period)
+  locationID <- geoIdentifier
+  recipeName <- WriteKISRecipe(var, locationID, period)
   result <- ExecuteKISRecipe(recipeName, period)
   return(result) #FIX: Timezone is 240000 this day or the next?
 }
 
-WriteKISRecipe <- function(var, geoIdentifier, period) {
+WriteKISRecipe <- function(var, locationID, period) {
   # period is not yet used in the recipe
   # max results does not seem to have
   recipeName <- "KIStable.txt"
-  recipe     <- 'recipe='
-  recipe     <- paste0(recipe, '{"datasetserieselements":[{"datasetseries":"REH1","element":"TG","unit":"graad C"}],')
-  recipe     <- paste0(recipe, '"datasetseriesnames":["REH1"],')
-  recipe     <- paste0(recipe, '"datasourcecodes":["', geoIdentifier, '"],')
-  recipe     <- paste0(recipe, '"intervalids":[],"elementgroupnames":[],"unitsettings":[{"unit":"graad C","scale":"true","conversionfunction":"NONE"}],"starttime":"20160115_000000_000000","endtime":"20160916_000000_000000","maxresults":1000,"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"TG","condition":"AMOUNT","value":null}]},"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}')
-  recipe     <- str_replace_all(recipe, '%', '%25')
+  recipe     <- 'recipe=' %>%
+    paste0('{"datasetserieselements":[{"datasetseries":"REH1","element":"TG","unit":"graad C"}],') %>%
+    paste0('"datasetseriesnames":["REH1"],') %>%
+    paste0('"datasourcecodes":["', locationID, '"],') %>%
+    paste0('"intervalids":[],') %>%
+    paste0('"elementgroupnames":[],') %>%
+    paste0('"unitsettings":[{"unit":"graad C","scale":"true","conversionfunction":"NONE"}],') %>%
+    paste0('"starttime":"20160115_000000_000000",') %>%
+    paste0('"endtime":"20160916_000000_000000",') %>%
+    paste0('"maxresults":1000,') %>%
+    paste0('"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"TG","condition":"AMOUNT","value":null}]},') %>%
+    paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
+    str_replace_all('%', '%25')
   writeLines(recipe, recipeName)
   return(recipeName)
 }

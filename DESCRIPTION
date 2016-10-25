@@ -9,7 +9,9 @@ Imports:
     checkmate,
     futile.logger,
     data.table,
-    stringr
+    stringr,
+    xts,
+    magrittr
 License: file LICENSE
 LazyData: true
 RoxygenNote: 5.0.1
