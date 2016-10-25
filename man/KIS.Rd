@@ -11,7 +11,7 @@ KIS(var, geoIdentifier, period)
 
 \item{geoIdentifier}{Station identifier (, spatial point, spatial area ..., plural?)}
 
-\item{period}{Xts}
+\item{period}{Either numeric, timeBased or ISO-8601 style (see \code{\link[xts]{.subset.xts}})}
 }
 \value{
 data.table
