@@ -5,6 +5,12 @@
 #' @return data.table
 #' @export
 KIS <- function(var, geoIdentifier, period) {
+  flog.debug("Started downloading data from KIS")
+  flog.debug("var={%s}", paste(var))
+  flog.debug("geoIdentifier has name={%s} and class={%s}",
+             paste(substitute(geoIdentifier)),
+             paste(class(geoIdentifier)[1]))
+  flog.debug("period={%s}", paste(period))
   assertChoice(var, "TG")
   assertChoice(geoIdentifier, c("260_H", "310_H"))
   tryCatch(xts::.parseISO8601(period),
