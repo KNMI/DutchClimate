@@ -5,6 +5,7 @@
 #' @return data.table
 #' @export
 KIS <- function(var, geoIdentifier, period) {
+  InternalOnly()
   flog.debug("Started downloading data from KIS")
   flog.debug("var={%s}", paste(var))
   flog.debug("geoIdentifier has name={%s} and class={%s}",
