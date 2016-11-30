@@ -2,6 +2,7 @@
 
 export(HelloWorld)
 export(KIS)
+export(KIStemplate)
 import(checkmate)
 import(data.table)
 import(futile.logger)
