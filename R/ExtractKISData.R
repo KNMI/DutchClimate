@@ -55,37 +55,37 @@ WriteKISRecipe <- function(var, locationID, period) {
   # max results does not seem to have
   recipeName <- "KIStable.txt"
   if (var == 'TG') {
-    recipe     <- 'recipe=' %>%
-      paste0('{"datasetserieselements":[{"datasetseries":"REH1","element":"TG","unit":"graad C"}],') %>%
-      paste0('"datasetseriesnames":["REH1"],') %>%
-      paste0('"datasourcecodes":["', locationID, '"],') %>%
-      paste0('"intervalids":[],') %>%
-      paste0('"elementgroupnames":[],') %>%
-      paste0('"unitsettings":[{"unit":"graad C","scale":"true","conversionfunction":"NONE"}],') %>%
-      paste0('"starttime":"20160115_000000_000000",') %>%
-      paste0('"endtime":"20160916_000000_000000",') %>%
-      paste0('"maxresults":1000,') %>%
-      paste0('"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"TG","condition":"AMOUNT","value":null}]},') %>%
-      paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
-      str_replace_all('%', '%25')
+    dataSeries <- "REH1"
+    unit       <- "graad C"
+    recipe <- WriteKISRecipeDetails(var, locationID, period, dataSeries, unit)
   }
   if (var == 'MOR_10') {
-    recipe     <- 'recipe=' %>%
-      paste0('{"datasetserieselements":[{"datasetseries":"TOA","element":"MOR_10","unit":"m"}],') %>%
-      paste0('"datasetseriesnames":["TOA"],') %>%
-      paste0('"datasourcecodes":["', locationID, '"],') %>%
-      paste0('"intervalids":[],') %>%
-      paste0('"elementgroupnames":[],') %>%
-      paste0('"unitsettings":[{"unit":"m","scale":"true","conversionfunction":"NONE"}],') %>%
-      paste0('"starttime":"20160115_000000_000000",') %>%
-      paste0('"endtime":"20160916_000000_000000",') %>%
-      paste0('"maxresults":1000,') %>%
-      paste0('"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"MOR_10","condition":"AMOUNT","value":null}]},') %>%
-      paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
-      str_replace_all('%', '%25')
+    dataSeries <- "TOA"
+    unit       <- "m"
+    recipe <- WriteKISRecipeDetails(var, locationID, period, dataSeries, unit)
   }
   writeLines(recipe, recipeName)
   return(recipeName)
+}
+
+WriteKISRecipeDetails <- function(var, locationID, period, dataSeries, unit) {
+  recipe <- 'recipe=' %>%
+    paste0('{"datasetserieselements":[{"datasetseries":"', dataSeries, '",') %>%
+    paste0('"element":"', var, '","unit":"', unit, '"}],') %>%
+    paste0('"datasetseriesnames":["', dataSeries, '"],') %>%
+    paste0('"datasourcecodes":["', locationID, '"],') %>%
+    paste0('"intervalids":[],') %>%
+    paste0('"elementgroupnames":[],') %>%
+    paste0('"unitsettings":[{"unit":"', unit, '",') %>%
+    paste0('"scale":"true","conversionfunction":"NONE"}],') %>%
+    paste0('"starttime":"20160115_000000_000000",') %>%
+    paste0('"endtime":"20160916_000000_000000",') %>%
+    paste0('"maxresults":1000,') %>%
+    paste0('"countsettings":{"count":false,"period":"DAY",') %>%
+    paste0('"countconditionbyelement":[{"element":"', var, '",') %>%
+    paste0('"condition":"AMOUNT","value":null}]},') %>%
+    paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
+    str_replace_all('%', '%25')
 }
 
 CorrectDataFormat <- function(xtsObject) {
