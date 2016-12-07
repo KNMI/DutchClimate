@@ -24,7 +24,14 @@ KIS <- function(var, geoIdentifier, period) {
   locationID <- geoIdentifier
   recipeName <- WriteKISRecipe(var, locationID, period)
   result <- ExecuteKISRecipe(recipeName, period)
+  SetRightColumnClass(result)
   return(result) #FIX: Timezone is 240000 this day or the next?
+}
+
+SetRightColumnClass <- function(dt) {
+  # So far only the class of the measurement col is changed to numeric
+  colName <- as.name(names(dt)[3])
+  dt[, c(3) := as.numeric(eval(as.name(colName)))]
 }
 
 #' Python test template
