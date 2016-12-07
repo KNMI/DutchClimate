@@ -1,5 +1,5 @@
 #' Extract data from KIS
-#' @param var Variable to extract (plural?)
+#' @param var Variable to extract for now 'TG' and 'MOR_10' are allowed (plural?)
 #' @param geoIdentifier Station identifier (, spatial point, spatial area ..., plural?)
 #' @param period Either numeric, timeBased or ISO-8601 style (see \code{\link[xts]{.subset.xts}})
 #' @return data.table
@@ -12,8 +12,13 @@ KIS <- function(var, geoIdentifier, period) {
              paste(substitute(geoIdentifier)),
              paste(class(geoIdentifier)[1]))
   flog.debug("period={%s}", paste(period))
-  assertChoice(var, "TG")
-  assertChoice(geoIdentifier, c("260_H", "310_H"))
+  assertChoice(var, c("TG", "MOR_10"))
+  if (var == "TG") {
+    assertChoice(geoIdentifier, c("260_H", "310_H"))
+  }
+  if (var == "MOR_10") {
+    assertChoice(geoIdentifier, c("260_A_a", "290_A_a"))
+  }
   tryCatch(xts::.parseISO8601(period),
            warning = function(cond) {
              stop("period does not seem to be suitable")
@@ -49,19 +54,36 @@ WriteKISRecipe <- function(var, locationID, period) {
   # period is not yet used in the recipe
   # max results does not seem to have
   recipeName <- "KIStable.txt"
-  recipe     <- 'recipe=' %>%
-    paste0('{"datasetserieselements":[{"datasetseries":"REH1","element":"TG","unit":"graad C"}],') %>%
-    paste0('"datasetseriesnames":["REH1"],') %>%
-    paste0('"datasourcecodes":["', locationID, '"],') %>%
-    paste0('"intervalids":[],') %>%
-    paste0('"elementgroupnames":[],') %>%
-    paste0('"unitsettings":[{"unit":"graad C","scale":"true","conversionfunction":"NONE"}],') %>%
-    paste0('"starttime":"20160115_000000_000000",') %>%
-    paste0('"endtime":"20160916_000000_000000",') %>%
-    paste0('"maxresults":1000,') %>%
-    paste0('"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"TG","condition":"AMOUNT","value":null}]},') %>%
-    paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
-    str_replace_all('%', '%25')
+  if (var == 'TG') {
+    recipe     <- 'recipe=' %>%
+      paste0('{"datasetserieselements":[{"datasetseries":"REH1","element":"TG","unit":"graad C"}],') %>%
+      paste0('"datasetseriesnames":["REH1"],') %>%
+      paste0('"datasourcecodes":["', locationID, '"],') %>%
+      paste0('"intervalids":[],') %>%
+      paste0('"elementgroupnames":[],') %>%
+      paste0('"unitsettings":[{"unit":"graad C","scale":"true","conversionfunction":"NONE"}],') %>%
+      paste0('"starttime":"20160115_000000_000000",') %>%
+      paste0('"endtime":"20160916_000000_000000",') %>%
+      paste0('"maxresults":1000,') %>%
+      paste0('"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"TG","condition":"AMOUNT","value":null}]},') %>%
+      paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
+      str_replace_all('%', '%25')
+  }
+  if (var == 'MOR_10') {
+    recipe     <- 'recipe=' %>%
+      paste0('{"datasetserieselements":[{"datasetseries":"TOA","element":"MOR_10","unit":"m"}],') %>%
+      paste0('"datasetseriesnames":["TOA"],') %>%
+      paste0('"datasourcecodes":["', locationID, '"],') %>%
+      paste0('"intervalids":[],') %>%
+      paste0('"elementgroupnames":[],') %>%
+      paste0('"unitsettings":[{"unit":"m","scale":"true","conversionfunction":"NONE"}],') %>%
+      paste0('"starttime":"20160115_000000_000000",') %>%
+      paste0('"endtime":"20160916_000000_000000",') %>%
+      paste0('"maxresults":1000,') %>%
+      paste0('"countsettings":{"count":false,"period":"DAY","countconditionbyelement":[{"element":"MOR_10","condition":"AMOUNT","value":null}]},') %>%
+      paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
+      str_replace_all('%', '%25')
+  }
   writeLines(recipe, recipeName)
   return(recipeName)
 }

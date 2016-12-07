@@ -7,7 +7,7 @@
 KIS(var, geoIdentifier, period)
 }
 \arguments{
-\item{var}{Variable to extract (plural?)}
+\item{var}{Variable to extract for now 'TG' and 'MOR_10' are allowed (plural?)}
 
 \item{geoIdentifier}{Station identifier (, spatial point, spatial area ..., plural?)}
 
