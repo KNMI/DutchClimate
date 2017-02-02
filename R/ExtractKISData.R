@@ -52,23 +52,21 @@ KIStemplate <- function(var, geoIdentifier, period) {
 
 WriteKISRecipe <- function(var, locationID, period) {
   # period is not yet used in the recipe
-  # max results does not seem to have
+  # max results does not seem to have any effect
+
+  # FIXME: Ensure that the recipe file is deleted
   recipeName <- "KIStable.txt"
+
   if (var == 'TG') {
     dataSeries <- "REH1"
     unit       <- "graad C"
-    recipe <- WriteKISRecipeDetails(var, locationID, period, dataSeries, unit)
-  }
-  if (var == 'MOR_10') {
+  } else if (var == 'MOR_10') {
     dataSeries <- "TOA"
     unit       <- "m"
-    recipe <- WriteKISRecipeDetails(var, locationID, period, dataSeries, unit)
+  } else {
+    stop(paste0("Variable ", var, " not defined."))
   }
-  writeLines(recipe, recipeName)
-  return(recipeName)
-}
 
-WriteKISRecipeDetails <- function(var, locationID, period, dataSeries, unit) {
   recipe <- 'recipe=' %>%
     paste0('{"datasetserieselements":[{"datasetseries":"', dataSeries, '",') %>%
     paste0('"element":"', var, '","unit":"', unit, '"}],') %>%
@@ -86,6 +84,9 @@ WriteKISRecipeDetails <- function(var, locationID, period, dataSeries, unit) {
     paste0('"condition":"AMOUNT","value":null}]},') %>%
     paste0('"displaysettings":{"showMetaData":false,"sort":"DateStationTime"}}') %>%
     str_replace_all('%', '%25')
+
+  writeLines(recipe, recipeName)
+  return(recipeName)
 }
 
 CorrectDataFormat <- function(xtsObject) {
@@ -95,8 +96,8 @@ CorrectDataFormat <- function(xtsObject) {
 ExecuteKISRecipe <- function(recipeName, period) {
   parsedPeriod <- .parseISO8601(period)
   url <- 'http://kisapp.knmi.nl:8080/servlet/download/table/'
-  url <- paste0(url, CorrectDataFormat(parsedPeriod$first.time+1),
-                '/', CorrectDataFormat(parsedPeriod$last.time+1), '/CSV')
+  url <- paste0(url, CorrectDataFormat(parsedPeriod$first.time + 1),
+                '/', CorrectDataFormat(parsedPeriod$last.time + 1), '/CSV')
   destFile <- 'KIStable.csv'
 
   flog.info("Start data download.")
