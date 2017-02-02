@@ -13,7 +13,8 @@ Imports:
     xts,
     magrittr,
     stats,
-    utils
+    utils,
+    knmiR
 License: file LICENSE
 LazyData: true
 RoxygenNote: 5.0.1
