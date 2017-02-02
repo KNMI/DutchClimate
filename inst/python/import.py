@@ -8,9 +8,9 @@ from rpy2.robjects import pandas2ri
 import matplotlib.pyplot as plt
 import numpy as np
 pandas2ri.activate()
-dc = importr("DutchClimate")
+knmiR = importr("knmiR")
 
-kisdata = pandas2ri.ri2py(dc.KIS("TG", '260_H', '2015'))
+kisdata = pandas2ri.ri2py(knmiR.KIS("TG", '260_H', '2015'))
 
 # aggregated = python.wrapp(dc.aggregate(kisdata))
 #
