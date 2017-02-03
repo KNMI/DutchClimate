@@ -5,6 +5,13 @@ warnings_are_errors: true
 sudo: required
 cache: packages
 
+addons:
+  apt:
+    packages:
+      - libgdal-dev
+      - libproj-dev
+      - netcdf-bin
+      - libnetcdf-dev
 
 r_packages:
   - covr
