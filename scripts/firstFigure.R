@@ -4,9 +4,9 @@ library(knmiR)
 
 tmp <- knmiR::KIS("TG", "260_H", "1900/2017")
 
-saveRDS(tmp, file = "data/datasample.rds")
+save(tmp, file = "data/datasample.rds")
+load("data/datasample.rda")
 
-tmp <- readRDS("data/datasample.rds")
 
 library(tidyr)
 # library(lubridate)
