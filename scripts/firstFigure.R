@@ -4,7 +4,7 @@ library(knmiR)
 
 tmp <- knmiR::KIS("TG", "260_H", "1900/2017")
 
-save(tmp, file = "data/datasample.rds")
+save(tmp, file = "data/datasample.rda", compress = "xz")
 load("data/datasample.rda")
 
 
