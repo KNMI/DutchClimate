@@ -18,7 +18,7 @@ r_packages:
   - covr
 
 r_github_packages:
-  - MartinRoth/knmiR@includeEOBS
+  - MartinRoth/knmiR
 
 after_success:
   - Rscript -e 'covr::codecov()'

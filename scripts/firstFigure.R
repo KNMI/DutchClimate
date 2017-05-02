@@ -6,14 +6,11 @@ library(ggplot2)
 
 # tmp <- knmiR::KIS("TG", "260_H", "1900/2017")
 
-# saveRDS(tmp, file = "data/datasample.rds")
-
-tmp <- readRDS("data/datasample.rds")
+save(tmp, file = "data/datasample.rda", compress = "xz")
+load("data/datasample.rda")
 setnames(tmp, "REH1.TG", "tg")
 tmp[, REH1.Q_TG := NULL]
 tmp[, DS_CODE := NULL]
-
-# library(lubridate)
 
 today <- "2017-04-17"
 startOfYear <- "2017-01-01"

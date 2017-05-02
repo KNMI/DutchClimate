@@ -7,3 +7,8 @@
 #' @importFrom stats rnorm
 #' @importFrom utils download.file
 NULL
+
+#' tmp
+#'
+#' An example temperature data set
+"tmp"
