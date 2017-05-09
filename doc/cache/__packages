@@ -1,0 +1,10 @@
+base
+knitr
+data.table
+knmiR
+tidyr
+ggplot2
+foreach
+iterators
+doParallel
+DutchClimate

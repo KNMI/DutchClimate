@@ -1,0 +1,106 @@
+\documentclass{article}
+
+\begin{document}
+
+<<Library, include = FALSE>>=
+library(data.table)
+library(knmiR)
+library(tidyr)
+library(ggplot2)
+library(doParallel)
+library(DutchClimate)
+registerDoParallel(2)
+@
+
+<<LoadData, cache = TRUE>>=
+load("../data/datasample.rda")
+
+setnames(tmp, "REH1.TG", "tg")
+tmp[, REH1.Q_TG := NULL]
+tmp[, DS_CODE := NULL]
+
+today <- "2017-04-17"
+startOfYear <- "2017-01-01"
+
+dailyData <- separate(tmp, IT_DATETIME, c("date", "hms", "nano"), sep = "_")
+dailyData[, hms := NULL]
+dailyData[, nano := NULL]
+dailyData[, date := as.Date(date, format = "%Y%m%d")]
+@
+
+<<ClimatologyRMSE, cache = TRUE, dependson = 'LoadData'>>=
+years   <- 5 : 30
+rmseVec <- numeric(length(years))
+for (k in seq_along(years)) {
+  dailyClimatology <- foreach(i = (1956 : (2016-(years[k]-1))), .combine = "rbind") %dopar% {
+    ComputeDailyClimatology(dailyData, i, i + (years[k]-1))
+  }
+  setkey(dailyClimatology, date)
+
+  hindcastProjections <- foreach(i = 1986 : 2016, .combine = "rbind") %dopar% {
+    HindcastProjection(i,
+                       dailyData[year(date)==i],
+                       dailyClimatology[year(date)==i])
+  }
+  setkey(hindcastProjections, date)
+
+  tmp <- hindcastProjections[, .(bias = mean(res), sd = sd(res), rmse = sqrt(mean(res^2))), by = .(month(date), mday(date))]
+
+  rmseVec[k] <- tmp[, mean(rmse)]
+}
+
+plot(years, rmseVec, main = "RMSE vs k")
+@
+
+<<PlotProjection>>=
+annualMeans <- dailyData[, .(TG = round(mean(tg), 2)), by = year(date)]
+
+# print(annualMeans[year > 2000])
+
+climateNormal <- data.frame(period = "1981/2010", year = 1981 : 2010,
+                            value = annualMeans[year %in% seq.int(1981, 2010, by = 1), mean(TG)])
+climateNormal <- rbind(climateNormal,
+                       data.frame(period = "1961/1990", year = 1961 : 1990,
+                            value = annualMeans[year %in% seq.int(1961, 1990, by = 1), mean(TG)]))
+
+
+
+p1 <- ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+  geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+  geom_smooth()
+
+@
+
+
+<<hindcast, cache = TRUE, dependson = 'LoadData'>>=
+k <- 12
+dailyClimatology <- foreach(i = (1956 : (2016-(k-1))), .combine = "rbind") %dopar% {
+  ComputeDailyClimatology(dailyData, i, i + (k-1))
+}
+
+setkey(dailyClimatology, date)
+
+hindcastProjections <- foreach(i = 1986 : 2016, .combine = "rbind") %dopar% {
+  HindcastProjection(i,
+                     dailyData[year(date)==i],
+                     dailyClimatology[year(date)==i])
+}
+
+setkey(hindcastProjections, date)
+
+statistics <- hindcastProjections[, .(bias = mean(res), sd = sd(res), rmse = sqrt(mean(res^2))), by = .(month(date), mday(date))]
+@
+
+<<>>=
+climatology <- ComputeDailyClimatology(dailyData, 2016-11, 2016)
+projection <- MeanProjection("2017-04-17", dailyData, NULL, climatology, statistics)
+print(projection)
+
+p1 + #geom_point(aes(x = year(date), y = mean), col = 2,
+    #            data = projection) +
+  geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+                data = projection) +
+  geom_point(aes(x = year, y = tg), data = data.frame(year = 2050, tg = 11.5), col = 4)
+@
+
+\end{document}

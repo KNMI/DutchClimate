@@ -1,6 +1,6 @@
 Package: DutchClimate
 Title: Reproducible Climate Dashboard
-Version: 0.0.0.9005
+Version: 0.0.0.9006
 Authors@R: person("Martin", "Roth", email = "roth@knmi.nl", role = c("aut", "cre"))
 Description: Serve as a example for a reproducible climate dashboard.
 Depends:
