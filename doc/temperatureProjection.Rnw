@@ -19,7 +19,7 @@ setnames(tmp, "REH1.TG", "tg")
 tmp[, REH1.Q_TG := NULL]
 tmp[, DS_CODE := NULL]
 
-today <- "2017-04-17"
+today <- "2017-05-09"
 startOfYear <- "2017-01-01"
 
 dailyData <- separate(tmp, IT_DATETIME, c("date", "hms", "nano"), sep = "_")
