@@ -19,7 +19,7 @@ ComputeDailyClimatology <- function(data, startYear, endYear) {
 #' @param dailyData of hindcast year
 #' @param dailyClimatology daily climatology
 #' @export
-HindcastProjection <- function(year, dailyData, dailyClimatology) {
+Hindcast <- function(year, dailyData, dailyClimatology) {
   # check that both data have same number of rows
   stopifnot(nrow(dailyData) == nrow(dailyClimatology))
   annualMean <- dailyData[year(date) == year, mean(tg)]

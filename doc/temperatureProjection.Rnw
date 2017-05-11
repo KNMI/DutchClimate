@@ -38,9 +38,9 @@ for (k in seq_along(years)) {
   setkey(dailyClimatology, date)
 
   hindcastProjections <- foreach(i = 1986 : 2016, .combine = "rbind") %dopar% {
-    HindcastProjection(i,
-                       dailyData[year(date)==i],
-                       dailyClimatology[year(date)==i])
+    Hindcast(i,
+             dailyData[year(date)==i],
+             dailyClimatology[year(date)==i])
   }
   setkey(hindcastProjections, date)
 
@@ -81,9 +81,9 @@ dailyClimatology <- foreach(i = (1956 : (2016-(k-1))), .combine = "rbind") %dopa
 setkey(dailyClimatology, date)
 
 hindcastProjections <- foreach(i = 1986 : 2016, .combine = "rbind") %dopar% {
-  HindcastProjection(i,
-                     dailyData[year(date)==i],
-                     dailyClimatology[year(date)==i])
+  Hindcast(i,
+           dailyData[year(date)==i],
+           dailyClimatology[year(date)==i])
 }
 
 setkey(hindcastProjections, date)

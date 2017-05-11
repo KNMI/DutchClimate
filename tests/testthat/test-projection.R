@@ -14,7 +14,7 @@ test_that("climatology and hindcast", {
   expect_equal_to_reference(climatology,
                             "./testOutput/dailyClimatology.rds")
 
-  hindcast <- HindcastProjection(2016,
+  hindcast <- Hindcast(2016,
                                  dailyData[year(date)==2016],
                                  climatology[year(date)==2016])
 
