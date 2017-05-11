@@ -16,7 +16,7 @@ ComputeDailyClimatology <- function(data, startYear, endYear) {
 #'
 #' Necessary to compute, bias, sd, rmse and other statistics of projection
 #' @param year integer year for hindcast
-#' @param daily data of hindcast year
+#' @param dailyData of hindcast year
 #' @param dailyClimatology daily climatology
 #' @export
 HindcastProjection <- function(year, dailyData, dailyClimatology) {

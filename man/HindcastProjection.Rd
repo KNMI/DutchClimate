@@ -9,9 +9,9 @@ HindcastProjection(year, dailyData, dailyClimatology)
 \arguments{
 \item{year}{integer year for hindcast}
 
-\item{dailyClimatology}{daily climatology}
+\item{dailyData}{of hindcast year}
 
-\item{daily}{data of hindcast year}
+\item{dailyClimatology}{daily climatology}
 }
 \description{
 Necessary to compute, bias, sd, rmse and other statistics of projection
