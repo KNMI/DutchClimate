@@ -91,9 +91,9 @@ setkey(hindcastProjections, date)
 statistics <- hindcastProjections[, .(bias = mean(res), sd = sd(res), rmse = sqrt(mean(res^2))), by = .(month(date), mday(date))]
 @
 
-<<>>=
+<<TGplot, fig.height=4, echo = TRUE, cache = TRUE>>=
 climatology <- ComputeDailyClimatology(dailyData, 2016-11, 2016)
-projection <- MeanProjection("2017-04-17", dailyData, NULL, climatology, statistics)
+projection <- MeanProjection("2017-05-10", dailyData, NULL, climatology, statistics)
 print(projection)
 
 p1 + #geom_point(aes(x = year(date), y = mean), col = 2,
