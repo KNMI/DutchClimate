@@ -8,3 +8,9 @@ foreach
 iterators
 doParallel
 DutchClimate
+gamlss.data
+MASS
+gamlss.dist
+nlme
+gamlss
+purrr

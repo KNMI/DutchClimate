@@ -4,7 +4,8 @@
 \alias{MeanProjection}
 \title{Projection}
 \usage{
-MeanProjection(day, measurements, forecast, climatology, statistics)
+MeanProjection(day, measurements, forecast, climatology, statistics,
+  sdfactor = 1.96)
 }
 \arguments{
 \item{day}{date of projection}
@@ -16,6 +17,8 @@ MeanProjection(day, measurements, forecast, climatology, statistics)
 \item{climatology}{daily climatology}
 
 \item{statistics}{statistics for bias correction and uncertainty}
+
+\item{sdfactor}{factor to determine cofidence interval (default = 1.96)}
 }
 \description{
 Projection

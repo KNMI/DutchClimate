@@ -43,8 +43,10 @@ Hindcast <- function(year, dailyData, dailyClimatology) {
 #' @param forecast 14-day forecast (not implemented yet)
 #' @param climatology daily climatology
 #' @param statistics statistics for bias correction and uncertainty
+#' @param sdfactor factor to determine cofidence interval (default = 1.96)
 #' @export
-MeanProjection <- function(day, measurements, forecast, climatology, statistics) {
+MeanProjection <- function(day, measurements, forecast, climatology,
+                           statistics, sdfactor = 1.96) {
   stopifnot(as.Date(day) %in% measurements$date)
   statistics[, date := as.Date(paste(year(day), month, mday, sep = "-"), format="%Y-%m-%d")]
   statistics <- na.omit(statistics)
@@ -53,7 +55,7 @@ MeanProjection <- function(day, measurements, forecast, climatology, statistics)
                       climatology[year(date) == year(day),
                                   .(date, tg)][date > day, ])
   projection <- projection[, mean(tg)] #+ statistics[date == day, bias]
-  uncertainty <- 1.96 * statistics[date == day, sd]
+  uncertainty <- sdfactor * statistics[date == day, sd]
   projection  <- projection + cbind(-1, 0, 1) * uncertainty
   colnames(projection) <- c("lower", "mean", "upper")
   projection <- as.data.table(projection)

@@ -7,7 +7,9 @@ library(data.table)
 library(knmiR)
 library(tidyr)
 library(ggplot2)
+library(gamlss)
 library(doParallel)
+library(purrr)
 library(DutchClimate)
 registerDoParallel(2)
 @
@@ -93,14 +95,81 @@ statistics <- hindcastProjections[, .(bias = mean(res), sd = sd(res), rmse = sqr
 
 <<TGplot, fig.height=4, echo = TRUE, cache = TRUE>>=
 climatology <- ComputeDailyClimatology(dailyData, 2016-11, 2016)
-projection <- MeanProjection("2017-05-10", dailyData, NULL, climatology, statistics)
+projection <- MeanProjection("2017-01-10", dailyData, NULL, climatology,
+                             statistics, sdfactor = 1.645)
 print(projection)
+
+scenarios <- data.table(year = c(rep(2050, 4), rep(2080, 4)),
+                        scenario = rep(c("GL", "GH", "WL", "WH"),2),
+                        tg = c(11.2, 11.6, 12.2, 12.5, 11.5, 11.9, 13.5, 13.9))
 
 p1 + #geom_point(aes(x = year(date), y = mean), col = 2,
     #            data = projection) +
   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
                 data = projection) +
-  geom_point(aes(x = year, y = tg), data = data.frame(year = 2050, tg = 11.5), col = 4)
+  geom_point(aes(x = year, y = tg, col = scenario), data = scenarios[year == 2050])
+@
+
+
+<<gamlssFit, echo = FALSE, cache = TRUE, dependson=c('PlotProjection','TGplot')>>=
+
+fit <- gamlss(TG ~ pb(year), data = annualMeans, family = "NO")
+probs <- seq.int(1, 99, by= 1) / 100
+params <- list(mu = fit$mu.fv, sigma = fit$sigma.fv)
+
+GetGamlssQuantile <- function(p, x, params) {
+  data.table(family = "Normal",
+             x      = x,
+             p      = paste0("p", p),
+             q      = do.call("qNO", c(p=p, params)))
+}
+
+values <- map(probs, GetGamlssQuantile, x = annualMeans$year, params = params)
+
+values <- rbindlist(values)
+
+# values <- data.table(family = "NO",
+#                      year   = rep(annualMeans[, year], 3),
+#                      p      = rep(c("p0.1", "p0.5", "p0.9"), each = nrow(annualMeans)),
+#                      q      = c(do.call("qNO", c(p=0.1, params)),
+#                                 do.call("qNO", c(p=0.5,  params)),
+#                                 do.call("qNO", c(p=0.9, params))))
+
+values <- spread(values, p, q)
+
+
+
+
+
+@
+
+<<gamlssTrendPlot, fig.height = 4>>=
+gamlssPred <- predict(fit, se.fit = TRUE)
+annualMeans[, pred := gamlssPred$fit]
+annualMeans[, sd := gamlssPred$se.fit]
+
+ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+  geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+  geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+  geom_smooth(aes(x = year, y = pred, ymin = pred - 1.96 * sd, ymax = pred + 1.96 *sd), stat = "identity") +
+  geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+                data = projection)
+@
+
+<<gamlssObservationPlot, fig.height = 4, cache = TRUE, dependson = 'gamlssFit'>>=
+
+
+# annualMeans[, fitted := fitted(fit)]
+
+ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+  geom_ribbon(aes(x = x, y = p0.5, ymin = p0.01, ymax = p0.99), data = values, alpha = 0.2) +
+  geom_ribbon(aes(x = x, y = p0.5, ymin = p0.4, ymax = p0.6), data = values, alpha = 0.2) +
+  geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+  geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+  geom_smooth(aes(x = x, y = p0.5, ymin = p0.1, ymax = p0.9), data = values, stat = "identity") +
+  geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+                data = projection)
+
 @
 
 \end{document}
