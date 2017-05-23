@@ -163,12 +163,58 @@ ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
 
 ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
   geom_ribbon(aes(x = x, y = p0.5, ymin = p0.01, ymax = p0.99), data = values, alpha = 0.2) +
-  geom_ribbon(aes(x = x, y = p0.5, ymin = p0.4, ymax = p0.6), data = values, alpha = 0.2) +
+  geom_ribbon(aes(x = x, y = p0.5, ymin = p0.25, ymax = p0.75), data = values, alpha = 0.2) +
   geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
   geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
   geom_smooth(aes(x = x, y = p0.5, ymin = p0.1, ymax = p0.9), data = values, stat = "identity") +
   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
                 data = projection)
+
+@
+
+<<>>=
+dailyData[, year := year(date)]
+dailyData[, month := month(date)]
+dailyData[, day := mday(date)]
+
+head(dailyData)
+
+MeanProjection2 <- function(dt, Date, probs = c(0.05, 0.50, 0.95)) {
+  message("Call is fine")
+  tmp <- dt[date < Date & (month > month(Date) | (month == month(Date) & day > mday(Date))),
+            .(TG = mean(tg)), by = year]
+
+  message("Averaging worked")
+  fit <- gamlss(TG ~ pb(year), data = tmp, family = "NO")
+
+
+  message("Fit passed")
+  newValues <- data.frame(year = 2017)
+  message("Data frame is defined")
+  mu <- predict(fit, newdata = newValues, what = "mu", se.fit = FALSE)
+  message("Mu was predicted")
+  sd <- exp(predict(fit, newdata = newValues, what = "sigma"))
+  message("Sd was predicted")
+  params <- list(mu = mu, sigma = sd)
+  # params <-  gamlss::predictAll(fit, newValues)
+
+  message("Parameters were predicted")
+
+  ndays <- yday("2017-12-31")
+  mdays <- yday(Date)
+  lambda <- mdays / ndays
+
+  message("Date proportion is calculated")
+  prediction <- qnorm(probs, params$mu, params$sigma)
+  current    <- dt[year == 2017, mean(tg)]
+
+  lambda * current + (1 - lambda) * prediction
+
+}
+
+
+MeanProjection2(dailyData, "2017-05-10", c(0.01, 0.5, 0.99))
+
 
 @
 
