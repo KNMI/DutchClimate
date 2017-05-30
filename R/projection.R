@@ -63,11 +63,67 @@ MeanProjection <- function(day, measurements, forecast, climatology,
   return(projection)
 }
 
+PredictMovingWindowBasis <- function(Date, dt, forecast = NULL, k = 12) {
+  stopifnot(as.Date(Date) %in% dt$date)
+
+  current     <- dt[year >= year(Date) & date <= Date]
+
+  ndays <- yday(paste0(year(Date), "-12-31"))
+  mdays <- yday(Date)
+  lambda <- mdays / ndays
+
+  if (ndays == mdays) {
+    return(current[, mean(tg)])
+  }
+
+  remainder <- dt[year < year(Date) &
+                    year > (year(Date) - (k+1))][month > month(Date) |
+                    (month == month(Date) & day > mday(Date)),
+                    mean(tg)]
+
+  prediction <- lambda * current[, mean(tg)] + (1 - lambda) * remainder
+
+  prediction
+}
+
+#' Moving window prediction
+#' @inheritParams MeanProjection
+#' @export
+PredictMovingWindow <- function(Date, dt, forecast = NULL, probs = c(0.05, 0.50, 0.95), k = 12) {
+  stopifnot(as.Date(Date) %in% dt$date)
+  dt <- copy(dt)
+  dt[, year := year(date)]
+  dt[, month := month(date)]
+  dt[, day := mday(date)]
+
+  currentPrediction <- PredictMovingWindowBasis(Date, dt,
+                                                forecast = forecast, k = k)
+
+  # startDate <- as.Date(Date) - 365.25*30 #
+  startDate <- as.Date(paste0(as.integer(substr(Date, 0, 4))-30, substr(Date, 5, 10)))
+  dates     <- seq.Date(startDate, as.Date(Date), by = "year")[-31]
+
+  hindcast    <- map_dbl(dates, PredictMovingWindowBasis, dt = dt,
+                         forecast = NULL, k = k)
+  actualMeans <- map_dbl(dates, CalcActualMean, dt = dt)
+  res         <- actualMeans - hindcast
+  stdDev      <- sd(res)
+
+  prediction <- qnorm(probs, currentPrediction, stdDev)
+  prediction <- as.data.frame(t(prediction))
+  colnames(prediction) <- paste0("p", probs*100)
+  cbind(date = Date, prediction)
+}
+
+CalcActualMean <- function(Date, dt) {
+  dt[year(date) == year(Date), mean(tg)]
+}
+
 #' Gamlss projection
 #'
 #' @inheritParams MeanProjection
 #' @export
-MeanProjectionGamlss <- function(Date, dt, forecast, probs = c(0.05, 0.50, 0.95)) {
+PredictGamlss <- function(Date, dt, forecast, probs = c(0.05, 0.50, 0.95)) {
   stopifnot(as.Date(Date) %in% dt$date)
   dt <- copy(dt)
   dt[, year := year(date)]
