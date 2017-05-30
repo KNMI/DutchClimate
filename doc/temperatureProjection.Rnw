@@ -68,7 +68,7 @@ for (k in seq_along(years)) {
 
  \item Select most suitable $k$ (we do so on averaged rmse)
 
-<<PlotClimatology, echo=FALSE, dependson='ClimatologyRMSE', fig.cap = "RMSE vs. $k$", fig.height=4>>=
+<<PlotRMSE, echo=FALSE, dependson='ClimatologyRMSE', fig.cap = "RMSE vs. $k$", fig.height=4, cache=TRUE>>=
 
 plot(years, rmseVec, xlab = "k", ylab = "mean rmse")
 @
@@ -164,13 +164,9 @@ values <- rbindlist(values)
 
 values <- spread(values, p, q)
 
-
-
-
-
 @
 
-<<gamlssTrendPlot, echo=FALSE, fig.cap = "Trend uncertainty (gamlss)", fig.height = 4>>=
+<<gamlssTrendPlot, echo=FALSE, fig.cap = "Trend uncertainty (gamlss)", fig.height = 4, cache=TRUE, dependson=c('PlotProjection','gamlssFit')>>=
 gamlssPred <- predict(fit, se.fit = TRUE)
 annualMeans[, pred := gamlssPred$fit]
 annualMeans[, sd := gamlssPred$se.fit]
@@ -205,7 +201,7 @@ ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
 
 \newpage
 
-<<echo=FALSE, fig.height=4, fig.cap="Projection 1. January">>=
+<<JanuaryProjection, echo=FALSE, fig.height=4, fig.cap="Projection 1. January", cache=TRUE, dependson=c('LoadData','PlotProjection', 'gamlssFit', 'hindcast', 'TGplot')>>=
 projection <- MeanProjection("2017-01-01", dailyData, NULL, climatology,
                              statistics, sdfactor = 1.96)
 ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
