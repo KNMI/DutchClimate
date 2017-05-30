@@ -41,6 +41,8 @@ dailyData <- separate(tmp, IT_DATETIME, c("date", "hms", "nano"), sep = "_")
 dailyData[, hms := NULL]
 dailyData[, nano := NULL]
 dailyData[, date := as.Date(date, format = "%Y%m%d")]
+
+annualMeans <- dailyData[, .(TG = round(mean(tg), 2)), by = year(date)]
 @
 
  \item Calculate climatology and daily rmse for different $k$
@@ -78,7 +80,6 @@ plot(years, rmseVec, xlab = "k", ylab = "mean rmse")
  \item Make a base plot climate normals and scenarios
 
 <<PlotProjection, echo=FALSE, cache=TRUE, fig.height = 4, fig.cap = "Base plot", dependson='LoadData'>>=
-annualMeans <- dailyData[, .(TG = round(mean(tg), 2)), by = year(date)]
 
 # print(annualMeans[year > 2000])
 
@@ -197,6 +198,10 @@ ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
 
  \item Envelope towards future climate?
 
+<<TrendRefit>>=
+annualMeans
+@
+
 \end{enumerate}
 
 \newpage
@@ -230,8 +235,36 @@ p1 +
   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
                 data = projection)
 @
-
-
+%
+% <<QuartelyGamProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData')>>=
+%
+% dates <- seq.Date(as.Date("1930-01-01"), as.Date("2017-05-01"), by = "quarter")
+%
+%
+% MeanProjectionGamlss_savely <- safely(MeanProjectionGamlss)
+% system.time(result <- foreach(date = iter(dates)) %dopar% {
+%   MeanProjectionGamlss_savely(date, dailyData, forecast = NULL)
+% })
+%
+% hasNoError <- map_lgl(result, function(x) is.null(x$error))
+%
+% goodResults <- result[hasNoError]
+%
+% projectionsGam <- rbindlist(map(goodResults, c(1)))
+% projectionsGam[, year := year(date)]
+%
+% projectionsGam <- merge(projectionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
+%
+%
+%
+% @
+%
+% <<PlotQuartelyGam, dependson=c('QuartelyGamProjection')>>=
+% ggplot(projectionsGam[month(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
+%   geom_ribbon(alpha = 0.2) + geom_step() +
+%   geom_step(aes(y = mean), col = 4, lty = 2)
+%
+% @
 
 %
 % <<>>=
