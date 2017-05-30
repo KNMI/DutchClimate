@@ -235,36 +235,36 @@ p1 +
   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
                 data = projection)
 @
-%
-% <<QuartelyGamProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData')>>=
-%
-% dates <- seq.Date(as.Date("1930-01-01"), as.Date("2017-05-01"), by = "quarter")
-%
-%
-% MeanProjectionGamlss_savely <- safely(MeanProjectionGamlss)
-% system.time(result <- foreach(date = iter(dates)) %dopar% {
-%   MeanProjectionGamlss_savely(date, dailyData, forecast = NULL)
-% })
-%
-% hasNoError <- map_lgl(result, function(x) is.null(x$error))
-%
-% goodResults <- result[hasNoError]
-%
-% projectionsGam <- rbindlist(map(goodResults, c(1)))
-% projectionsGam[, year := year(date)]
-%
-% projectionsGam <- merge(projectionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
-%
-%
-%
-% @
-%
-% <<PlotQuartelyGam, dependson=c('QuartelyGamProjection')>>=
-% ggplot(projectionsGam[month(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
-%   geom_ribbon(alpha = 0.2) + geom_step() +
-%   geom_step(aes(y = mean), col = 4, lty = 2)
-%
-% @
+
+<<QuartelyGamProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData')>>=
+
+dates <- seq.Date(as.Date("1930-01-01"), as.Date("2017-05-01"), by = "quarter")
+
+
+MeanProjectionGamlss_savely <- safely(MeanProjectionGamlss)
+system.time(result <- foreach(date = iter(dates)) %dopar% {
+  MeanProjectionGamlss_savely(date, dailyData, forecast = NULL)
+})
+
+hasNoError <- map_lgl(result, function(x) is.null(x$error))
+
+goodResults <- result[hasNoError]
+
+projectionsGam <- rbindlist(map(goodResults, c(1)))
+projectionsGam[, year := year(date)]
+
+projectionsGam <- merge(projectionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
+
+
+
+@
+
+<<PlotQuartelyGam, fig.height=4, fig.cap="Projection on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyGamProjection')>>=
+ggplot(projectionsGam[month(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
+  geom_ribbon(alpha = 0.2) + geom_line() +
+  geom_line(aes(y = TG), col = 4, lty = 2)
+
+@
 
 %
 % <<>>=

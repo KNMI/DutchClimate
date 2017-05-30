@@ -62,3 +62,46 @@ MeanProjection <- function(day, measurements, forecast, climatology,
   projection[, date := day]
   return(projection)
 }
+
+#' Gamlss projection
+#'
+#' @inheritParams MeanProjection
+#' @export
+MeanProjectionGamlss <- function(Date, dt, forecast, probs = c(0.05, 0.50, 0.95)) {
+  stopifnot(as.Date(Date) %in% dt$date)
+  dt <- copy(dt)
+  dt[, year := year(date)]
+  dt[, month := month(date)]
+  dt[, day := mday(date)]
+  current <- dt[year >= year(Date) & date <= Date]
+  past    <- dt[year < year(Date)]
+
+  ndays <- yday(paste0(year(Date), "-12-31"))
+  mdays <- yday(Date)
+  lambda <- mdays / ndays
+  if (ndays == mdays) {
+    prediction <- as.data.frame(t(rep(mean(current$tg), length(probs))))
+    colnames(prediction) <- paste0("p", probs*100)
+    prediction <- cbind(date = Date, prediction)
+    return(prediction)
+  }
+  tmp <- past[date < Date & (month > month(Date) | (month == month(Date) & day > mday(Date))), .(TG = mean(tg)), by = year]
+  fit <- gamlss(TG ~ pb(year), data = tmp, family = "NO", control = gamlss.control(trace=FALSE))
+
+  f = file()
+  sink(file = f)
+  params <- predictAll(fit, newdata = data.frame(year = year(Date)), data = tmp)
+  sink()
+  close(f)
+
+  remainder  <- qnorm(probs, params$mu, params$sigma)
+  prediction <- lambda * mean(current$tg) + (1 - lambda) * remainder
+
+
+  prediction <- as.data.frame(t(prediction))
+  colnames(prediction) <- paste0("p", probs*100)
+  prediction <- cbind(date = Date, prediction)
+
+  # list(current, past, fit, params, lambda, current[, mean(tg)], remainder, prediction)
+  prediction
+}

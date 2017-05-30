@@ -6,6 +6,7 @@
 #' @importFrom magrittr '%>%'
 #' @importFrom stats rnorm na.omit sd
 #' @importFrom utils download.file
+#' @import gamlss
 NULL
 
 #' tmp
