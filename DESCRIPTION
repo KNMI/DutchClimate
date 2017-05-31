@@ -1,6 +1,6 @@
 Package: DutchClimate
 Title: Reproducible Climate Dashboard
-Version: 0.0.0.9009
+Version: 0.0.0.9010
 Authors@R: person("Martin", "Roth", email = "roth@knmi.nl", role = c("aut", "cre"))
 Description: Serve as a example for a reproducible climate dashboard.
 Depends:
@@ -18,5 +18,5 @@ Imports:
     gamlss
 License: file LICENSE
 LazyData: true
-RoxygenNote: 6.0.1.9000
+RoxygenNote: 6.0.1
 Suggests: testthat

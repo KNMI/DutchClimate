@@ -5,10 +5,18 @@
 \title{Moving window prediction}
 \usage{
 PredictMovingWindow(Date, dt, forecast = NULL, probs = c(0.05, 0.5, 0.95),
-  k = 12)
+  k = 12L)
 }
 \arguments{
-\item{forecast}{14-day forecast (not implemented yet)}
+\item{Date}{date from which to predict}
+
+\item{dt}{data.table with daily measurements (at least last 30 years)}
+
+\item{forecast}{data.table with operational forecast}
+
+\item{probs}{probabilities to predict}
+
+\item{k}{integer size of moving window in years}
 }
 \description{
 Moving window prediction

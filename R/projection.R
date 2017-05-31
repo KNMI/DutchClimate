@@ -87,9 +87,13 @@ PredictMovingWindowBasis <- function(Date, dt, forecast = NULL, k = 12) {
 }
 
 #' Moving window prediction
-#' @inheritParams MeanProjection
+#' @param Date date from which to predict
+#' @param dt data.table with daily measurements (at least last 30 years)
+#' @param forecast data.table with operational forecast
+#' @param probs probabilities to predict
+#' @param k integer size of moving window in years
 #' @export
-PredictMovingWindow <- function(Date, dt, forecast = NULL, probs = c(0.05, 0.50, 0.95), k = 12) {
+PredictMovingWindow <- function(Date, dt, forecast = NULL, probs = c(0.05, 0.50, 0.95), k = 12L) {
   stopifnot(as.Date(Date) %in% dt$date)
   dt <- copy(dt)
   dt[, year := year(date)]
@@ -121,7 +125,7 @@ CalcActualMean <- function(Date, dt) {
 
 #' Gamlss projection
 #'
-#' @inheritParams MeanProjection
+#' @inheritParams PredictMovingWindow
 #' @export
 PredictGamlss <- function(Date, dt, forecast, probs = c(0.05, 0.50, 0.95)) {
   stopifnot(as.Date(Date) %in% dt$date)
