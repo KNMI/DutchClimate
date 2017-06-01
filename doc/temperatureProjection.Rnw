@@ -256,7 +256,7 @@ predictionsGam[, year := year(date)]
 predictionsGam <- merge(predictionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
 @
 
-<<PlotQuartelyGam, fig.height=4, fig.cap="Projection on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyGamProjection')>>=
+<<PlotQuartelyGam, fig.height=4, fig.cap="Gamlss predicition on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyGamProjection')>>=
 ggplot(predictionsGam[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
   geom_ribbon(alpha = 0.2) + geom_line() +
   geom_line(aes(y = TG), col = 4, lty = 2)
@@ -282,7 +282,7 @@ predictionsMV <- merge(predictionsMV, annualMeans[year != 2017,], by = "year", a
 
 @
 
-<<PlotMovingWindow, fig.height=4, fig.cap="Projection on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyMVProjection')>>=
+<<PlotMovingWindow, fig.height=4, fig.cap="12-year moving window prediction on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyMVProjection')>>=
 ggplot(predictionsMV[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
   geom_ribbon(alpha = 0.2) + geom_line() +
   geom_line(aes(y = TG), col = 4, lty = 2)
