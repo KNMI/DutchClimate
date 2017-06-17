@@ -2,6 +2,7 @@
 
 export(ComputeDailyClimatology)
 export(Hindcast)
+export(MakeTrendEnvelope)
 export(MeanProjection)
 export(PredictGamlss)
 export(PredictMovingWindow)

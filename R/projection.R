@@ -165,3 +165,17 @@ PredictGamlss <- function(Date, dt, forecast, probs = c(0.05, 0.50, 0.95)) {
   # list(current, past, fit, params, lambda, current[, mean(tg)], remainder, prediction)
   prediction
 }
+
+#' Produces trend envelope data frame
+#'
+#' @description uses linear interpolation
+#' @param start dt with year, lower, and upper
+#' @param end dt with year, lower, and upper
+#' @export
+MakeTrendEnvelope <- function(start, end) {
+  combined <- rbind(start, end)
+  years <- seq.int(start[, year], end[, year], by = 1)
+  lower <- approx(combined[, year], combined[, lower], xout = years)$y
+  upper <- approx(combined[, year], combined[, upper], xout = years)$y
+  data.table(year = years, lower = lower, upper = upper)
+}
