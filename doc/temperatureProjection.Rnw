@@ -425,7 +425,6 @@ tgplot +
 @
 
 \clearpage
-\section{Projection 2016}
 
 <<GamlssTrend2016, echo = FALSE, cache = TRUE, dependson = c('AnnualMeans')>>=
 
@@ -441,10 +440,20 @@ gamlssTrend[, sd := gamlssPred$se.fit]
 
 <<Projection2016, echo = FALSE, cache = TRUE, dependson=c('LoadData')>>=
 projection <- PredictMovingWindow("2016-12-05", dailyData)
-projection
 @
 
-<<TGbaseplot2016, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'AnnualMeans', 'GamlssTrend2016', 'ClimateNormals', 'Scenarios', 'Projection2016', 'ScenarioEnvelopes')>>=
+<<ScenarioEnvelopes2016, echo = FALSE, cache = TRUE, dependson = c('GamlssTrend2016', 'Scenarios')>>=
+var   <- 0.16
+start <- gamlssTrend[year == 2016 - 1,
+                     .(year, lower = pred - 1.96 * sd, upper = pred + 1.96 * sd)]
+end   <- scenarios[year == 2050,
+                   .(lower = min(tg) - var, upper = max(tg) + var), by = year]
+
+
+envelope <- MakeTrendEnvelope(start, end)
+@
+
+<<TGbaseplot2016, warning = FALSE, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'AnnualMeans', 'GamlssTrend2016', 'ClimateNormals', 'Scenarios', 'Projection2016', 'ScenarioEnvelopes2016')>>=
 tgplot <- ggplot(annualMeans[year != 2017 & year != 2016], aes(x = year, y = TG)) +
   geom_line() +
   geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
@@ -455,7 +464,51 @@ tgplot <- ggplot(annualMeans[year != 2017 & year != 2016], aes(x = year, y = TG)
                 data = projection)
 @
 
-<<TGplot2016, fig.cap = "Base plot plus projection on 5. May 2017", fig.height=4, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'AnnualMeans', 'GamlssTrend2016', 'ClimateNormals', 'Scenarios', 'Projection2016', 'ScenarioEnvelopes', 'TGbaseplot2016')>>=
+<<TGplot2016, warning = FALSE, fig.cap = "Base plot plus projection on 5. December 2016", fig.height=4, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'AnnualMeans', 'GamlssTrend2016', 'ClimateNormals', 'Scenarios', 'Projection2016', 'ScenarioEnvelopes2017', 'TGbaseplot2016')>>=
+
+tgplot +
+  geom_line(aes(x = year, y = upper), lty = 3, col = 4, data = envelope) +
+  geom_line(aes(x = year, y = lower), lty = 3, col = 4, data = envelope)
+@
+
+<<GamlssTrend2017, echo = FALSE, cache = TRUE, dependson = c('AnnualMeans')>>=
+
+fit <- gamlss(TG ~ pb(year), data = annualMeans[year != 2017,], family = "NO",
+              control = gamlss.control(trace=FALSE))
+
+gamlssPred <- predict(fit, se.fit = TRUE)
+gamlssTrend <- annualMeans[year != 2017]
+gamlssTrend[, pred := gamlssPred$fit]
+gamlssTrend[, sd := gamlssPred$se.fit]
+@
+
+<<ScenarioEnvelopes2017, echo = FALSE, cache = TRUE, dependson = c('GamlssTrend2017', 'Scenarios')>>=
+var   <- 0.16
+start <- gamlssTrend[year == 2017 - 1,
+                     .(year, lower = pred - 1.96 * sd, upper = pred + 1.96 * sd)]
+end   <- scenarios[year == 2050,
+                   .(lower = min(tg) - var, upper = max(tg) + var), by = year]
+
+
+envelope <- MakeTrendEnvelope(start, end)
+@
+
+<<Projection2017, echo = FALSE, cache = TRUE, dependson=c('LoadData')>>=
+projection <- PredictMovingWindow("2017-01-05", dailyData)
+@
+
+<<TGbaseplot2017, warning = FALSE, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'AnnualMeans', 'GamlssTrend2017', 'ClimateNormals', 'Scenarios', 'Projection2017', 'ScenarioEnvelopes2017')>>=
+tgplot <- ggplot(annualMeans[year != 2017], aes(x = year, y = TG)) +
+  geom_line() +
+  geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+  geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+  geom_smooth(aes(x = year, y = pred, ymin = pred - 1.96 * sd, ymax = pred + 1.96 *sd), stat = "identity", data = gamlssTrend) +
+  # geom_smooth(span=0.75, col = 2) +
+  geom_pointrange(aes(x = year(date), ymin = p5, y = p50, ymax = p95), col = 2,
+                data = projection)
+@
+
+<<TGplot2017, warning = FALSE, fig.cap = "Base plot plus projection on 5. January 2017", fig.height=4, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'AnnualMeans', 'GamlssTrend2017', 'ClimateNormals', 'Scenarios', 'Projection2017', 'ScenarioEnvelopes2017', 'TGbaseplot2017')>>=
 
 tgplot +
   geom_line(aes(x = year, y = upper), lty = 3, col = 4, data = envelope) +
