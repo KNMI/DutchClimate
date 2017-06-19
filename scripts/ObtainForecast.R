@@ -2,7 +2,7 @@ library(jsonlite)
 
 # https://cdn.knmi.nl/knmi/json/page/weer/waarschuwingen_verwachtingen/ensemble/iPluim/260_99999.json
 
-tmp <- fromJSON("~/Desktop/outputJson_99999_260_Web_2017052400.json")
+tmp <- fromJSON("https://cdn.knmi.nl/knmi/json/page/weer/waarschuwingen_verwachtingen/ensemble/iPluim/260_99999.json")
 
 names(tmp)
 
@@ -15,10 +15,11 @@ tmp4 <- as.data.frame(tmp3$data)
 str(tmp2[1, ][["data"]])
 
 
+
 library(lubridate)
 
 
-days_passed <- tmp4[, 1] / 1000 /60 / 60 / 24
+
 
 # we need to know the origin, and make it into a Date object
 origin <- as.Date("1970-01-01")

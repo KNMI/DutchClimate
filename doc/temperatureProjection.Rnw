@@ -29,14 +29,25 @@ for the following 14 days.
 \begin{enumerate}
  \item Obtain the data from (Robu-)KIS
 
-<<LoadData, echo=FALSE, cache = TRUE>>=
-load("../data/datasample.rda")
+<<LoadKIS, echo=FALSE, cache = TRUE>>=
+# load("../data/datasample.rda")
+
+tmp <- knmiR::KIS("TG", "260_H", "1900/2017-06-19")
+
+
+@
+
+<<>>=
+print(tmp)
+@
+
+<<LoadData, echo = FALSE, cache = TRUE, dependson = 'LoadKIS'>>=
 
 setnames(tmp, "REH1.TG", "tg")
 tmp[, REH1.Q_TG := NULL]
 tmp[, DS_CODE := NULL]
 
-today <- "2017-05-09"
+today <- "2017-06-19"
 startOfYear <- "2017-01-01"
 
 dailyData <- separate(tmp, IT_DATETIME, c("date", "hms", "nano"), sep = "_")
@@ -44,7 +55,11 @@ dailyData[, hms := NULL]
 dailyData[, nano := NULL]
 dailyData[, date := as.Date(date, format = "%Y%m%d")]
 
+
+forecast <- ObtainForecast()
+
 annualMeans <- dailyData[, .(TG = round(mean(tg), 2)), by = year(date)]
+forecast
 @
 
  \item Calculate climatology and daily rmse for different $k$
@@ -241,93 +256,93 @@ p1 +
 dates <- seq.Date(as.Date("1986-01-01"), as.Date("2016-12-31"), by = "day")
 @
 
-<<QuartelyGamProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'PredictDates')>>=
-
-PredictGamlss_savely <- safely(PredictGamlss)
-gamtime <- system.time(result <- foreach(date = iter(dates)) %dopar% {
-  PredictGamlss_savely(date, dailyData, forecast = NULL)
-})
-
-hasNoError <- map_lgl(result, function(x) is.null(x$error))
-
-goodResults <- result[hasNoError]
-
-predictionsGam <- rbindlist(map(goodResults, c(1)))
-predictionsGam[, year := year(date)]
-predictionsGam <- merge(predictionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
-@
-
-<<PlotQuartelyGam, fig.height=4, fig.cap="Gamlss predicition on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyGamProjection')>>=
-ggplot(predictionsGam[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
-  geom_ribbon(alpha = 0.2) + geom_line() +
-  geom_line(aes(y = TG), col = 4, lty = 2)
-
-@
-
-<<QuartelyMVProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'PredictDates')>>=
-
-PredictMV_savely <- safely(PredictMovingWindow)
-mvtime <- system.time(resultMV <- foreach(date = iter(dates)) %dopar% {
-  PredictMV_savely(date, dailyData, forecast = NULL)
-})
-
-hasNoError <- map_lgl(resultMV, function(x) is.null(x$error))
-
-goodResultsMV <- resultMV[hasNoError]
-
-predictionsMV <- rbindlist(map(goodResultsMV, c(1)))
-predictionsMV[, year := year(date)]
-predictionsMV <- merge(predictionsMV, annualMeans[year != 2017,], by = "year", all.x=TRUE)
-
-
-
-@
-
-<<PlotMovingWindow, fig.height=4, fig.cap="12-year moving window prediction on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyMVProjection')>>=
-ggplot(predictionsMV[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
-  geom_ribbon(alpha = 0.2) + geom_line() +
-  geom_line(aes(y = TG), col = 4, lty = 2)
-
-@
-
-<<>>=
-gamtime
-mvtime
-@
-
-<<>>=
-predictions <- merge(predictionsGam[, .(date, predGam = p50)], predictionsMV[, .(date, predMV = p50, TG)], by = "date")
-# predictionsGam[, sqrt(mean((p50-TG)^2, na.rm=TRUE))]
-# predictionsMV[, sqrt(mean((p50-TG)^2, na.rm = TRUE))]
-predictions
-frmse <- function(x, y) sqrt(mean((x-y)^2, na.rm=TRUE))
-fbias <- function(x, y) mean(x-y,na.rm=TRUE)
-fsd   <- function(x, y) sd(x-y,na.rm=TRUE)
-@
-
-<<>>=
-tmp <- predictions[, .(rmseGAM = frmse(predGam, TG), rmseMV = frmse(predMV, TG),
-                       biasGAM = fbias(predGam, TG), biasMV = fbias(predMV, TG),
-                       sdGAM = fsd(predGam, TG), sdMV = fsd(predMV, TG)),
-                   by = .(month(date), mday(date))]
-tmp[, date := as.Date(paste(2017, month, mday, sep = "-"), format="%Y-%m-%d")]
-tmp <- na.omit(tmp)
-
-ggplot(tmp, aes(x=date, y = rmseMV)) + geom_line() +
-  geom_line(aes(y=rmseGAM), col = 2)
-
-ggplot(tmp, aes(x=date, y = biasMV)) + geom_line() +
-  geom_line(aes(y=biasGAM), col = 2)
-
-ggplot(tmp, aes(x=date, y = sdMV)) + geom_line() +
-  geom_line(aes(y=sdGAM), col = 2)
-@
-
-
-<<timing>>=
-system.time(PredictGamlss("2017-05-01", dailyData))
-system.time(PredictMovingWindow("2017-05-01", dailyData))
-@
+% <<QuartelyGamProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'PredictDates')>>=
+%
+% PredictGamlss_savely <- safely(PredictGamlss)
+% gamtime <- system.time(result <- foreach(date = iter(dates)) %dopar% {
+%   PredictGamlss_savely(date, dailyData, forecast = NULL)
+% })
+%
+% hasNoError <- map_lgl(result, function(x) is.null(x$error))
+%
+% goodResults <- result[hasNoError]
+%
+% predictionsGam <- rbindlist(map(goodResults, c(1)))
+% predictionsGam[, year := year(date)]
+% predictionsGam <- merge(predictionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
+% @
+%
+% <<PlotQuartelyGam, fig.height=4, fig.cap="Gamlss predicition on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyGamProjection')>>=
+% ggplot(predictionsGam[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
+%   geom_ribbon(alpha = 0.2) + geom_line() +
+%   geom_line(aes(y = TG), col = 4, lty = 2)
+%
+% @
+%
+% <<QuartelyMVProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'PredictDates')>>=
+%
+% PredictMV_savely <- safely(PredictMovingWindow)
+% mvtime <- system.time(resultMV <- foreach(date = iter(dates)) %dopar% {
+%   PredictMV_savely(date, dailyData, forecast = NULL)
+% })
+%
+% hasNoError <- map_lgl(resultMV, function(x) is.null(x$error))
+%
+% goodResultsMV <- resultMV[hasNoError]
+%
+% predictionsMV <- rbindlist(map(goodResultsMV, c(1)))
+% predictionsMV[, year := year(date)]
+% predictionsMV <- merge(predictionsMV, annualMeans[year != 2017,], by = "year", all.x=TRUE)
+%
+%
+%
+% @
+%
+% <<PlotMovingWindow, fig.height=4, fig.cap="12-year moving window prediction on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyMVProjection')>>=
+% ggplot(predictionsMV[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
+%   geom_ribbon(alpha = 0.2) + geom_line() +
+%   geom_line(aes(y = TG), col = 4, lty = 2)
+%
+% @
+%
+% <<>>=
+% gamtime
+% mvtime
+% @
+%
+% <<>>=
+% predictions <- merge(predictionsGam[, .(date, predGam = p50)], predictionsMV[, .(date, predMV = p50, TG)], by = "date")
+% # predictionsGam[, sqrt(mean((p50-TG)^2, na.rm=TRUE))]
+% # predictionsMV[, sqrt(mean((p50-TG)^2, na.rm = TRUE))]
+% predictions
+% frmse <- function(x, y) sqrt(mean((x-y)^2, na.rm=TRUE))
+% fbias <- function(x, y) mean(x-y,na.rm=TRUE)
+% fsd   <- function(x, y) sd(x-y,na.rm=TRUE)
+% @
+%
+% <<>>=
+% tmp <- predictions[, .(rmseGAM = frmse(predGam, TG), rmseMV = frmse(predMV, TG),
+%                        biasGAM = fbias(predGam, TG), biasMV = fbias(predMV, TG),
+%                        sdGAM = fsd(predGam, TG), sdMV = fsd(predMV, TG)),
+%                    by = .(month(date), mday(date))]
+% tmp[, date := as.Date(paste(2017, month, mday, sep = "-"), format="%Y-%m-%d")]
+% tmp <- na.omit(tmp)
+%
+% ggplot(tmp, aes(x=date, y = rmseMV)) + geom_line() +
+%   geom_line(aes(y=rmseGAM), col = 2)
+%
+% ggplot(tmp, aes(x=date, y = biasMV)) + geom_line() +
+%   geom_line(aes(y=biasGAM), col = 2)
+%
+% ggplot(tmp, aes(x=date, y = sdMV)) + geom_line() +
+%   geom_line(aes(y=sdGAM), col = 2)
+% @
+%
+%
+% <<timing>>=
+% system.time(PredictGamlss("2017-05-01", dailyData))
+% system.time(PredictMovingWindow("2017-05-01", dailyData))
+% @
 
 \section{Projection 2017}
 <<AnnualMeans, echo = FALSE, cache = TRUE, dependson=c('LoadData')>>=
