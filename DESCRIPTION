@@ -16,7 +16,8 @@ Imports:
     utils,
     knmiR,
     gamlss,
-    jsonlite
+    jsonlite,
+    anytime
 License: file LICENSE
 LazyData: true
 RoxygenNote: 6.0.1.9000

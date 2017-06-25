@@ -13,21 +13,76 @@ library(gamlss)
 library(doParallel)
 library(purrr)
 library(DutchClimate)
+library(anytime)
 registerDoParallel(3)
 @
 
-\subsection*{Idea}
-After discussion with Theo, Gerard, and Adri it was decided, that the projection
-for the annual mean should follow the updated Bosbijtel methode, i.e. we take
-the daily temperatures observed so far for this year and add the daily
-climatology of the last $k$ years.
 
-To refine this later we can use the forecast values, instead of the climatology
-for the following 14 days.
+ToDo:
+\begin{itemize}
+ \item Describe more clearly the approach
+ \item Motivation for gamlss
+ \item List of things still do
+ \item Monthly plot
+ \item Description of the elements in each plot
+\end{itemize}
 
-\subsection*{Steps}
-\begin{enumerate}
- \item Obtain the data from (Robu-)KIS
+\paragraph{Projection}
+The temperature projection is made based only on observed temperature values at
+the site and the 14 day operational forecast, i.e. no correlations to
+circulation patterns or other added information is used.
+This was decided after discussion with Theo, Gerard, and Adri.
+
+For the projection one builds the weighted average of the already observed
+temperatures in the current year and the $k$-year daily climatology for the
+remaining days in the year.
+Note the WMO standard is to compute the mean of the monthly means, which leads
+to a overrepresentation of the Februrar mean temperature.
+
+It might be best explained with an example: Assume we have observations
+up to June 18, 2017, but not later.
+This day is the \Sexpr{yday(anydate("June 18, 2017"))}-th day of the year 2017.
+That means we have already observed
+$$x^o_1, \ldots, x^o_{\Sexpr{yday(anydate("June 18, 2017"))}}$$
+temperature values and there remain
+\Sexpr{yday(anydate("Dec 31, 2017")) - yday(anydate("June 18, 2017")+1)} days,
+from which we do not know the temperature yet.
+We impute these days with the daily climatology obtained over the last $k$ years,
+i.e.
+$$x^c_{\Sexpr{yday(anydate("June 18, 2017")) + 1}}, \ldots,
+x^c_{\Sexpr{yday(anydate("Dec 31, 2017"))}}.$$
+From the combined sample
+$$x^o_1, \ldots, x^o_{\Sexpr{yday(anydate("June 18, 2017"))}},
+x^c_{\Sexpr{yday(anydate("June 18, 2017")+1)}}, \ldots,
+x^c_{\Sexpr{yday(anydate("Dec 31, 2017"))}}$$
+we calculate the annual mean, which represents then our projection for the
+current year.
+
+The incorporation of the operational forecast is simple, we replace the first
+14 days of the daily climatology with the forecasted values, i.e. we obtain the
+following sample
+$$x^o_1, \ldots, x^o_{\Sexpr{yday(anydate("June 18, 2017"))}},
+x^f_{\Sexpr{yday(anydate("June 18, 2017")+1)}}, \ldots,
+x^f_{\Sexpr{yday(anydate("June 18, 2017")+14)}},
+x^c_{\Sexpr{yday(anydate("June 18, 2017")+15)}}, \ldots,
+x^c_{\Sexpr{yday(anydate("Dec 31, 2017"))}}.$$
+
+We mentioned that the climatology was obtained over the last $k$ years,
+normally climatology is equivalent with $k=30$.
+However, with a hindcast one can select the $k$, that minimizes the yearly
+averaged daily root mean squared error (RMSE).
+
+For the hindcast over the last 30 years we did not include the operational
+forecast, mainly because we did not have directly access to the data, but
+also because the forecast method hopefully has improved over the last 30 years
+and this inhomogeneity might influence the result.
+The hindcast can also be used to determine the uncertainty of the projection,
+i.e. the standard deviation of difference between the projection and the
+actual annual mean of the year.
+
+\paragraph{Data collection}
+The daily data is obtained from the (Robu-)KIS data base and the forecast data
+is obtained from the Weerpluim (beter source?).
 
 <<LoadKIS, echo=FALSE, cache = TRUE>>=
 # load("../data/datasample.rda")
@@ -35,10 +90,6 @@ for the following 14 days.
 tmp <- knmiR::KIS("TG", "260_H", "1900/2017-06-19")
 
 
-@
-
-<<>>=
-print(tmp)
 @
 
 <<LoadData, echo = FALSE, cache = TRUE, dependson = 'LoadKIS'>>=
@@ -61,6 +112,23 @@ forecast <- ObtainForecast()
 annualMeans <- dailyData[, .(TG = round(mean(tg), 2)), by = year(date)]
 forecast
 @
+
+
+
+\subsection*{Idea}
+After discussion with Theo, Gerard, and Adri it was decided, that the projection
+for the annual mean should follow the updated Bosbijtel methode, i.e. we take
+the daily temperatures observed so far for this year and add the daily
+climatology of the last $k$ years.
+
+To refine this later we can use the forecast values, instead of the climatology
+for the following 14 days.
+
+\subsection*{Steps}
+\begin{enumerate}
+ \item Obtain the data from (Robu-)KIS
+
+
 
  \item Calculate climatology and daily rmse for different $k$
 <<ClimatologyRMSE, echo=FALSE, cache = TRUE, dependson = 'LoadData'>>=
