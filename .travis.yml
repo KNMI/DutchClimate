@@ -2,10 +2,23 @@
 
 language: r
 warnings_are_errors: true
+dist: trusty
 sudo: required
 cache: packages
 
+addons:
+  apt:
+    packages:
+      - libgdal-dev
+      - libproj-dev
+      - netcdf-bin
+      - libnetcdf-dev
+
 r_packages:
   - covr
+
+r_github_packages:
+  - MartinRoth/knmiR
+
 after_success:
   - Rscript -e 'covr::codecov()'
