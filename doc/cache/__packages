@@ -1,0 +1,17 @@
+base
+knitr
+data.table
+knmiR
+tidyr
+ggplot2
+foreach
+iterators
+doParallel
+DutchClimate
+gamlss.data
+MASS
+gamlss.dist
+nlme
+gamlss
+purrr
+anytime

@@ -1,0 +1,593 @@
+\documentclass{article}
+
+\usepackage{hyperref}
+
+\begin{document}
+
+<<Library, include = FALSE>>=
+library(data.table)
+library(knmiR)
+library(tidyr)
+library(ggplot2)
+library(gamlss)
+library(doParallel)
+library(purrr)
+library(DutchClimate)
+library(anytime)
+registerDoParallel(3)
+@
+
+
+ToDo:
+\begin{itemize}
+ \item Monthly plot have to be made (is the Gaussian distribution valid?)
+ \item Better source of the forecast data (should there be a bias correction of
+   the forecast data?)
+ \item Start to put the elements in a data provenance context (from the
+   technical side Alessandro knows the most)
+\end{itemize}
+
+\paragraph{Data collection}
+The daily data is obtained from the (Robu-)KIS data base and the forecast data
+is obtained from the weer pluim (beter source?).
+
+<<LoadKIS, echo=FALSE, cache = TRUE>>=
+# load("../data/datasample.rda")
+
+tmp <- knmiR::KIS("TG", "260_H", "1900/2017-06-19")
+
+
+@
+
+<<LoadForecast, echo = FALSE, cache = TRUE, dependson = 'LoadKIS'>>=
+
+forecast <- ObtainForecast()
+@
+
+<<PrepareData, echo = FALSE, cache = TRUE, dependson = c('LoadKIS', 'LoadForecast')>>=
+
+setnames(tmp, "REH1.TG", "tg")
+tmp[, REH1.Q_TG := NULL]
+tmp[, DS_CODE := NULL]
+
+today <- "2017-06-19"
+startOfYear <- "2017-01-01"
+
+dailyData <- separate(tmp, IT_DATETIME, c("date", "hms", "nano"), sep = "_")
+dailyData[, hms := NULL]
+dailyData[, nano := NULL]
+dailyData[, date := as.Date(date, format = "%Y%m%d")]
+
+@
+
+\paragraph{Projection}
+The temperature projection is made based only on observed temperature values at
+the site and the 14 day operational forecast, i.e. no correlations to
+circulation patterns or other added information is used.
+This was decided after discussion with Theo, Gerard, and Adri.
+
+For the projection one builds the weighted average of the already observed
+temperatures in the current year and the $k$-year daily climatology for the
+remaining days in the year.
+Note the WMO standard is to compute the mean of the monthly means, which leads
+to a overrepresentation of the Februrar mean temperature.
+
+It might be best explained with an example: Assume we have observations
+up to June 18, 2017, but not later.
+This day is the \Sexpr{yday(anydate("June 18, 2017"))}-th day of the year 2017.
+That means we have already observed
+$$x^o_1, \ldots, x^o_{\Sexpr{yday(anydate("June 18, 2017"))}}$$
+temperature values and there remain
+\Sexpr{yday(anydate("Dec 31, 2017")) - yday(anydate("June 18, 2017")+1)} days,
+from which we do not know the temperature yet.
+We impute these days with the daily climatology obtained over the last $k$ years,
+i.e.
+$$x^c_{\Sexpr{yday(anydate("June 18, 2017")) + 1}}, \ldots,
+x^c_{\Sexpr{yday(anydate("Dec 31, 2017"))}}.$$
+From the combined sample
+$$x^o_1, \ldots, x^o_{\Sexpr{yday(anydate("June 18, 2017"))}},
+x^c_{\Sexpr{yday(anydate("June 18, 2017")+1)}}, \ldots,
+x^c_{\Sexpr{yday(anydate("Dec 31, 2017"))}}$$
+we calculate the annual mean, which represents then our projection for the
+current year.
+
+The incorporation of the operational forecast is simple, we replace the first
+14 days of the daily climatology with the forecasted values, i.e. we obtain the
+following sample
+$$x^o_1, \ldots, x^o_{\Sexpr{yday(anydate("June 18, 2017"))}},
+x^f_{\Sexpr{yday(anydate("June 18, 2017")+1)}}, \ldots,
+x^f_{\Sexpr{yday(anydate("June 18, 2017")+14)}},
+x^c_{\Sexpr{yday(anydate("June 18, 2017")+15)}}, \ldots,
+x^c_{\Sexpr{yday(anydate("Dec 31, 2017"))}}.$$
+
+We mentioned that the climatology was obtained over the last $k$ years,
+normally climatology is equivalent with $k=30$.
+However, with a hindcast one can select the $k$, that minimizes the yearly
+averaged daily root mean squared error (RMSE).
+From this hindcast over the last 30 years, the optimal $k$ was determined to be
+12, see Figure \ref{fig:PlotRMSE}.
+
+For the hindcast we did not include the operational
+forecast, mainly because we did not have directly access to the data, but
+also because the forecast method hopefully has improved over the last 30 years
+and this inhomogeneity might influence the result.
+The hindcast can also be used to determine the uncertainty of the projection,
+i.e. the standard deviation of difference between the projection and the
+actual annual mean of the year.
+
+
+
+<<ClimatologyRMSE, echo=FALSE, cache = TRUE, dependson = 'PrepareData'>>=
+years   <- 5 : 30
+rmseVec <- numeric(length(years))
+for (k in seq_along(years)) {
+  dailyClimatology <- foreach(i = (1956 : (2016-(years[k]-1))), .combine = "rbind") %dopar% {
+    ComputeDailyClimatology(dailyData, i, i + (years[k]-1))
+  }
+  setkey(dailyClimatology, date)
+
+  hindcastProjections <- foreach(i = 1986 : 2016, .combine = "rbind") %dopar% {
+    Hindcast(i,
+             dailyData[year(date)==i],
+             dailyClimatology[year(date)==i])
+  }
+  setkey(hindcastProjections, date)
+
+  tmp <- hindcastProjections[, .(bias = mean(res), sd = sd(res), rmse = sqrt(mean(res^2))), by = .(month(date), mday(date))]
+
+  rmseVec[k] <- tmp[, mean(rmse)]
+}
+@
+
+<<PlotRMSE, echo=FALSE, dependson='ClimatologyRMSE', fig.cap = "RMSE vs. $k$", fig.height=4, cache=TRUE>>=
+
+rmseDat <- data.frame(k = years, rmse = rmseVec)
+
+ggplot(rmseDat, aes(x = k, y = rmse)) + geom_point()
+
+@
+
+\paragraph{Annual means}
+In the next step we calculate the annual means.
+The WMO standards define the annual mean as the unweighted average of the
+monthly mean temperatures, which implies that February has the same weight as
+all other months.
+<<AnnualMeans, echo = FALSE, cache = TRUE, dependson = 'PrepareData'>>=
+annualMeans <- CalculateAnnualMean(dailyData, "WMO")
+
+@
+
+
+\paragraph{Trend estimation}
+For the trend estimation we use a generalized additive model for location,
+scale and shape (GAMLSS), see Stasinopoulos and Rigby (2007).
+We use a Gaussian distribution with constant variance and a location parameter
+modelled via penalized B-splines.
+The GAMLSS procedure uses a generalized cross validation to determine the
+optimal amount of smoothing.
+No hyperparameters have to be tuned outside the function call.
+<<GamlssTrend, echo = FALSE, cache = TRUE, dependson = c('AnnualMeans')>>=
+
+fit <- gamlss(TG ~ pb(year), data = annualMeans[year != 2017,], family = "NO",
+              control = gamlss.control(trace=FALSE))
+
+gamlssPred <- predict(fit, se.fit = TRUE)
+gamlssTrend <- annualMeans[year != 2017]
+gamlssTrend[, pred := gamlssPred$fit]
+gamlssTrend[, sd := gamlssPred$se.fit]
+
+probs <- seq.int(1, 99, by= 1) / 100
+params <- list(mu = fit$mu.fv, sigma = fit$sigma.fv)
+
+GetGamlssQuantile <- function(p, x, params) {
+  data.table(family = "Normal",
+             x      = x,
+             p      = paste0("p", p),
+             q      = do.call("qNO", c(p=p, params)))
+}
+
+predictionQuantiles <- map(probs, GetGamlssQuantile, x = annualMeans[year!= 2017, year], params = params)
+
+predictionQuantiles <- rbindlist(predictionQuantiles)
+
+predictionQuantiles <- spread(predictionQuantiles, p, q)
+@
+
+<<ClimateNormals, echo = FALSE, cache = TRUE, dependson=c('PrepareData')>>=
+climateNormal <- data.table(period = "1981/2010", year = 1981 : 2010,
+                            value = annualMeans[year %in% seq.int(1981, 2010, by = 1), mean(TG)])
+climateNormal <- rbind(climateNormal,
+                       data.table(period = "1961/1990", year = 1961 : 1990,
+                            value = annualMeans[year %in% seq.int(1961, 1990, by = 1), mean(TG)]))
+
+@
+
+<<Scenarios, echo = FALSE, cache = TRUE>>=
+scenarios <- data.table(year = c(rep(2050, 4), rep(2080, 4)),
+                        scenario = rep(c("GL", "GH", "WL", "WH"),2),
+                        tg = c(11.2, 11.6, 12.2, 12.5, 11.5, 11.9, 13.5, 13.9))
+@
+
+<<Projection, echo = FALSE, cache = TRUE, dependson=c('PrepareData')>>=
+projection <- PredictMovingWindow("2017-06-18", dailyData)
+@
+
+
+<<ScenarioEnvelopes, echo = FALSE, cache = TRUE, dependson = c('ClimateNormals', 'Scenarios', 'GamlssTrend')>>=
+# var   <- 0.16
+# start <- climateNormal[period == "1981/2010" & year == 1995,
+#                        .(year, lower = value - var, upper = value + var)]
+# end   <- scenarios[year == 2050,
+#                    .(lower = min(tg) - var, upper = max(tg) + var), by = year]
+#
+#
+# envelope <- MakeTrendEnvelope(start, end)
+
+var   <- 0.16
+start <- gamlssTrend[year == 2017 - 1,
+    .(year, lower = pred - 1.64 * sd, upper = pred + 1.64 * sd)]
+
+end   <- scenarios[year == 2050, .(lower = min(tg) - var,
+                                   upper = max(tg) + var), by = year]
+envelope <- MakeTrendEnvelope(start, end)
+
+@
+
+<<TGbaseplot, warning = FALSE, echo = FALSE, cache = TRUE, dependson=c('PrepareData', 'AnnualMeans', 'GamlssTrend', 'ClimateNormals', 'Scenarios', 'Projection', 'ScenarioEnvelopes')>>=
+tgplot <- ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) +
+  geom_line() +
+  geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+  geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+  geom_smooth(aes(x = year, y = pred, ymin = pred - 1.64 * sd, ymax = pred + 1.64 *sd), stat = "identity", data = gamlssTrend) +
+  # geom_smooth(span=0.75, col = 2) +
+  geom_pointrange(aes(x = year(date), ymin = p5, y = p50, ymax = p95), col = 2,
+                data = projection)
+@
+
+<<TGplot2, warning = FALSE, fig.cap = "Annual mean temperatures with climate normals, smooth trend and projection from June 18, 2017. The plot shows further the KNMI14 climate scenarios and a trend envelope.", fig.height=4, echo = FALSE, cache = TRUE, dependson=c('ScenarioEnvelopes', 'TGbaseplot')>>=
+
+tgplot +
+  geom_line(aes(x = year, y = upper), lty = 3, col = 4, data = envelope) +
+  geom_line(aes(x = year, y = lower), lty = 3, col = 4, data = envelope)
+@
+
+Natural variation (90\% confidence band) of 30-year means is around 0.16 degree
+Celsius, see also \url{http://www.klimaatscenarios.nl/kerncijfers/}.
+The trend envelope shown in Figure \ref{fig:TGplot2} is a linear interpolation
+from the 90\% confidence band of the trend to the KNMI 14 scenario estimates
+plus minus 0.16 degrees.
+
+<<TGplot3, warning = FALSE, fig.cap = "The same plot with 90\\% prediction uncertainty.", fig.height=4, , echo = FALSE, cache = TRUE, dependson=c('ScenarioEnvelopes', 'TGbaseplot', 'GamlssTrend')>>=
+tgplot +
+  geom_smooth(aes(x = x, y = p0.5, ymin = p0.05, ymax = p0.95), data = predictionQuantiles, stat = "identity") +
+  geom_line(aes(x = year, y = upper), lty = 3, col = 4, data = envelope) +
+  geom_line(aes(x = year, y = lower), lty = 3, col = 4, data = envelope)
+
+@
+
+
+
+
+
+
+
+% \subsection*{Idea}
+% After discussion with Theo, Gerard, and Adri it was decided, that the projection
+% for the annual mean should follow the updated Bosbijtel methode, i.e. we take
+% the daily temperatures observed so far for this year and add the daily
+% climatology of the last $k$ years.
+%
+% To refine this later we can use the forecast values, instead of the climatology
+% for the following 14 days.
+%
+% \subsection*{Steps}
+% \begin{enumerate}
+%  \item Obtain the data from (Robu-)KIS
+%
+%
+%
+%  \item Calculate climatology and daily rmse for different $k$
+%
+%  \item Select most suitable $k$ (we do so on averaged rmse)
+%
+%   In our case this is $k=12$
+%  \item Produce hindcast with specified $k$ to assess uncertainty
+%  \item Make a base plot climate normals and scenarios
+%
+% <<PlotProjection, echo=FALSE, cache=TRUE, fig.height = 4, fig.cap = "Base plot", dependson=c('PrepareData', 'AnnualMeans')>>=
+%
+% # print(annualMeans[year > 2000])
+%
+% climateNormal <- data.frame(period = "1981/2010", year = 1981 : 2010,
+%                             value = annualMeans[year %in% seq.int(1981, 2010, by = 1), mean(TG)])
+% climateNormal <- rbind(climateNormal,
+%                        data.frame(period = "1961/1990", year = 1961 : 1990,
+%                             value = annualMeans[year %in% seq.int(1961, 1990, by = 1), mean(TG)]))
+%
+% scenarios <- data.table(year = c(rep(2050, 4), rep(2080, 4)),
+%                         scenario = rep(c("GL", "GH", "WL", "WH"),2),
+%                         tg = c(11.2, 11.6, 12.2, 12.5, 11.5, 11.9, 13.5, 13.9))
+%
+% p1 <- ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+%   geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+%   geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050])
+%
+% p1
+% @
+%
+%  \item Add projection with 95\% uncertainty (level can be chosen)
+% <<hindcast, echo=FALSE, cache = TRUE, dependson = 'LoadData'>>=
+% k <- 12
+% dailyClimatology <- foreach(i = (1956 : (2016-(k-1))), .combine = "rbind") %dopar% {
+%   ComputeDailyClimatology(dailyData, i, i + (k-1))
+% }
+%
+% setkey(dailyClimatology, date)
+%
+% hindcastProjections <- foreach(i = 1986 : 2016, .combine = "rbind") %dopar% {
+%   Hindcast(i,
+%            dailyData[year(date)==i],
+%            dailyClimatology[year(date)==i])
+% }
+%
+% setkey(hindcastProjections, date)
+%
+% statistics <- hindcastProjections[, .(bias = mean(res), sd = sd(res), rmse = sqrt(mean(res^2))), by = .(month(date), mday(date))]
+% @
+%
+% <<TGplot, fig.cap = "Base plot plus projection on 5. May 2017", fig.height=4, echo = FALSE, cache = TRUE, dependson=c('LoadData','PlotProjection')>>=
+% climatology <- ComputeDailyClimatology(dailyData, 2016-11, 2016)
+% projection <- MeanProjection("2017-05-05", dailyData, NULL, climatology,
+%                              statistics, sdfactor = 1.96)
+% # print(projection)
+%
+%
+%
+% p1 + #geom_point(aes(x = year(date), y = mean), col = 2,
+%     #            data = projection) +
+%   # geom_smooth(span=0.2) +
+%   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+%                 data = projection)
+% @
+%
+%
+%  \item Add trend
+%
+% <<gamlssFit, message=FALSE, echo = FALSE, cache = TRUE, dependson=c('PlotProjection','TGplot')>>=
+%
+% fit <- gamlss(TG ~ pb(year), data = annualMeans[year != 2017], family = "NO",
+%               control = gamlss.control(trace=FALSE))
+% probs <- seq.int(1, 99, by= 1) / 100
+% params <- list(mu = fit$mu.fv, sigma = fit$sigma.fv)
+%
+% GetGamlssQuantile <- function(p, x, params) {
+%   data.table(family = "Normal",
+%              x      = x,
+%              p      = paste0("p", p),
+%              q      = do.call("qNO", c(p=p, params)))
+% }
+%
+% values <- map(probs, GetGamlssQuantile, x = annualMeans[year!= 2017, year], params = params)
+%
+% values <- rbindlist(values)
+%
+% # values <- data.table(family = "NO",
+% #                      year   = rep(annualMeans[, year], 3),
+% #                      p      = rep(c("p0.1", "p0.5", "p0.9"), each = nrow(annualMeans)),
+% #                      q      = c(do.call("qNO", c(p=0.1, params)),
+% #                                 do.call("qNO", c(p=0.5,  params)),
+% #                                 do.call("qNO", c(p=0.9, params))))
+%
+% values <- spread(values, p, q)
+%
+% @
+%
+% <<gamlssTrendPlot, echo=FALSE, fig.cap = "Trend uncertainty (gamlss)", fig.height = 4, cache=TRUE, dependson=c('PlotProjection','gamlssFit')>>=
+% gamlssPred <- predict(fit, se.fit = TRUE)
+% gamlssTrend <- annualMeans[year != 2017]
+% gamlssTrend[, pred := gamlssPred$fit]
+% gamlssTrend[, sd := gamlssPred$se.fit]
+%
+% ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+%   geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+%   geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+%   geom_smooth(aes(x = year, y = pred, ymin = pred - 1.96 * sd, ymax = pred + 1.96 *sd), stat = "identity", data = gamlssTrend) +
+%   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+%                 data = projection)
+% @
+%
+% <<gamlssObservationPlot, echo=FALSE, fig.cap = "Prediction interval (gamlss)", fig.height = 4, cache = TRUE, dependson = 'gamlssFit'>>=
+%
+%
+% # annualMeans[, fitted := fitted(fit)]
+%
+% ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+%   geom_ribbon(aes(x = x, y = p0.5, ymin = p0.01, ymax = p0.99), data = values, alpha = 0.2) +
+%   geom_ribbon(aes(x = x, y = p0.5, ymin = p0.25, ymax = p0.75), data = values, alpha = 0.2) +
+%   geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+%   geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+%   geom_smooth(aes(x = x, y = p0.5, ymin = p0.1, ymax = p0.9), data = values, stat = "identity") +
+%   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+%                 data = projection)
+%
+% @
+%
+%  \item Envelope towards future climate?
+%
+%
+%
+% \end{enumerate}
+%
+% \newpage
+%
+% <<JanuaryProjection, echo=FALSE, fig.height=4, fig.cap="Projection 1. January", cache=TRUE, dependson=c('LoadData','PlotProjection', 'gamlssFit', 'hindcast', 'TGplot')>>=
+% projection <- MeanProjection("2017-01-01", dailyData, NULL, climatology,
+%                              statistics, sdfactor = 1.96)
+% ggplot(annualMeans[year != year(today)], aes(x = year, y = TG)) + geom_line() +
+%   geom_ribbon(aes(x = x, y = p0.5, ymin = p0.01, ymax = p0.99), data = values, alpha = 0.2) +
+%   geom_ribbon(aes(x = x, y = p0.5, ymin = p0.25, ymax = p0.75), data = values, alpha = 0.2) +
+%   geom_line(aes(x = year, y = value, col = period), data = climateNormal) +
+%   geom_point(aes(x = year, y = tg, shape = scenario), data = scenarios[year == 2050]) +
+%   geom_smooth(aes(x = x, y = p0.5, ymin = p0.1, ymax = p0.9), data = values, stat = "identity") +
+%   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+%                 data = projection)
+% @
+%
+% \clearpage
+% Different trend models result in different pictures.
+%
+% <<LoessTrend, fig.height=4, echo = FALSE, cache = TRUE, dependson=c('LoadData','PlotProjection')>>=
+% p1 +
+%   geom_smooth(span=0.2) +
+%   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+%                 data = projection)
+% @
+%
+% <<LoessTrend2, fig.height=4, echo = FALSE, cache = TRUE, dependson=c('LoadData','PlotProjection')>>=
+% p1 +
+%   geom_smooth(span=0.75) +
+%   geom_pointrange(aes(x = year(date), ymin = lower, y = mean, ymax = upper), col = 2,
+%                 data = projection)
+% @
+%
+% <<PredictDates, echo=FALSE, cache=TRUE>>=
+% dates <- seq.Date(as.Date("1986-01-01"), as.Date("2016-12-31"), by = "day")
+% @
+
+% <<QuartelyGamProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'PredictDates')>>=
+%
+% PredictGamlss_savely <- safely(PredictGamlss)
+% gamtime <- system.time(result <- foreach(date = iter(dates)) %dopar% {
+%   PredictGamlss_savely(date, dailyData, forecast = NULL)
+% })
+%
+% hasNoError <- map_lgl(result, function(x) is.null(x$error))
+%
+% goodResults <- result[hasNoError]
+%
+% predictionsGam <- rbindlist(map(goodResults, c(1)))
+% predictionsGam[, year := year(date)]
+% predictionsGam <- merge(predictionsGam, annualMeans[year != 2017,], by = "year", all.x=TRUE)
+% @
+%
+% <<PlotQuartelyGam, fig.height=4, fig.cap="Gamlss predicition on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyGamProjection')>>=
+% ggplot(predictionsGam[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
+%   geom_ribbon(alpha = 0.2) + geom_line() +
+%   geom_line(aes(y = TG), col = 4, lty = 2)
+%
+% @
+%
+% <<QuartelyMVProjection, echo = FALSE, cache = TRUE, dependson=c('LoadData', 'PredictDates')>>=
+%
+% PredictMV_savely <- safely(PredictMovingWindow)
+% mvtime <- system.time(resultMV <- foreach(date = iter(dates)) %dopar% {
+%   PredictMV_savely(date, dailyData, forecast = NULL)
+% })
+%
+% hasNoError <- map_lgl(resultMV, function(x) is.null(x$error))
+%
+% goodResultsMV <- resultMV[hasNoError]
+%
+% predictionsMV <- rbindlist(map(goodResultsMV, c(1)))
+% predictionsMV[, year := year(date)]
+% predictionsMV <- merge(predictionsMV, annualMeans[year != 2017,], by = "year", all.x=TRUE)
+%
+%
+%
+% @
+%
+% <<PlotMovingWindow, fig.height=4, fig.cap="12-year moving window prediction on January 1 (black) with uncertainty and true mean annual temperature (blue)", cache=TRUE, dependson=c('QuartelyMVProjection')>>=
+% ggplot(predictionsMV[yday(date) == 1], aes(x = date, ymin = p5, y = p50, ymax = p95)) +
+%   geom_ribbon(alpha = 0.2) + geom_line() +
+%   geom_line(aes(y = TG), col = 4, lty = 2)
+%
+% @
+%
+% <<>>=
+% gamtime
+% mvtime
+% @
+%
+% <<>>=
+% predictions <- merge(predictionsGam[, .(date, predGam = p50)], predictionsMV[, .(date, predMV = p50, TG)], by = "date")
+% # predictionsGam[, sqrt(mean((p50-TG)^2, na.rm=TRUE))]
+% # predictionsMV[, sqrt(mean((p50-TG)^2, na.rm = TRUE))]
+% predictions
+% frmse <- function(x, y) sqrt(mean((x-y)^2, na.rm=TRUE))
+% fbias <- function(x, y) mean(x-y,na.rm=TRUE)
+% fsd   <- function(x, y) sd(x-y,na.rm=TRUE)
+% @
+%
+% <<>>=
+% tmp <- predictions[, .(rmseGAM = frmse(predGam, TG), rmseMV = frmse(predMV, TG),
+%                        biasGAM = fbias(predGam, TG), biasMV = fbias(predMV, TG),
+%                        sdGAM = fsd(predGam, TG), sdMV = fsd(predMV, TG)),
+%                    by = .(month(date), mday(date))]
+% tmp[, date := as.Date(paste(2017, month, mday, sep = "-"), format="%Y-%m-%d")]
+% tmp <- na.omit(tmp)
+%
+% ggplot(tmp, aes(x=date, y = rmseMV)) + geom_line() +
+%   geom_line(aes(y=rmseGAM), col = 2)
+%
+% ggplot(tmp, aes(x=date, y = biasMV)) + geom_line() +
+%   geom_line(aes(y=biasGAM), col = 2)
+%
+% ggplot(tmp, aes(x=date, y = sdMV)) + geom_line() +
+%   geom_line(aes(y=sdGAM), col = 2)
+% @
+%
+%
+% <<timing>>=
+% system.time(PredictGamlss("2017-05-01", dailyData))
+% system.time(PredictMovingWindow("2017-05-01", dailyData))
+% @
+
+
+%
+% <<>>=
+% dailyData[, year := year(date)]
+% dailyData[, month := month(date)]
+% dailyData[, day := mday(date)]
+%
+% head(dailyData)
+%
+% MeanProjection2 <- function(dt, Date, probs = c(0.05, 0.50, 0.95)) {
+%   message("Call is fine")
+%   tmp <- dt[date < Date & (month > month(Date) | (month == month(Date) & day > mday(Date))),
+%             .(TG = mean(tg)), by = year]
+%
+%   message("Averaging worked")
+%   fit <- gamlss(TG ~ pb(year), data = tmp, family = "NO")
+%
+%
+%   message("Fit passed")
+%   newValues <- data.frame(year = 2017)
+%   message("Data frame is defined")
+%   mu <- predict(fit, newdata = newValues, what = "mu", se.fit = FALSE)
+%   message("Mu was predicted")
+%   sd <- exp(predict(fit, newdata = newValues, what = "sigma"))
+%   message("Sd was predicted")
+%   params <- list(mu = mu, sigma = sd)
+%   # params <-  gamlss::predictAll(fit, newValues)
+%
+%   message("Parameters were predicted")
+%
+%   ndays <- yday("2017-12-31")
+%   mdays <- yday(Date)
+%   lambda <- mdays / ndays
+%
+%   message("Date proportion is calculated")
+%   prediction <- qnorm(probs, params$mu, params$sigma)
+%   current    <- dt[year == 2017, mean(tg)]
+%
+%   lambda * current + (1 - lambda) * prediction
+%
+% }
+%
+%
+% MeanProjection2(dailyData, "2017-05-10", c(0.01, 0.5, 0.99))
+%
+%
+% @
+
+\end{document}
