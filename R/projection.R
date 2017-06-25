@@ -22,7 +22,7 @@ ComputeDailyClimatology <- function(data, startYear, endYear) {
 Hindcast <- function(year, dailyData, dailyClimatology) {
   # check that both data have same number of rows
   stopifnot(nrow(dailyData) == nrow(dailyClimatology))
-  annualMean <- dailyData[year(date) == year, mean(tg)]
+  annualMean <- CalculateAnnualMean(dailyData[year(date) == year], "WMO")[, TG]
   nDays <- nrow(dailyData)
   projection <- numeric(nDays)
   for (i in 1 : (nDays-1)) {
