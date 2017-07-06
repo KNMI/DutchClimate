@@ -34,7 +34,7 @@ is obtained from the weer pluim (beter source?).
 <<LoadKIS, echo=FALSE, cache = TRUE>>=
 # load("../data/datasample.rda")
 
-tmp <- knmiR::KIS("TG", "260_H", "1900/2017-06-19")
+tmp <- knmiR::KIS("TG", "260_H", "1900/2017-07-06")
 
 
 @
@@ -209,7 +209,7 @@ scenarios <- data.table(year = c(rep(2050, 4), rep(2080, 4)),
 @
 
 <<Projection, echo = FALSE, cache = TRUE, dependson=c('PrepareData')>>=
-projection <- PredictMovingWindow("2017-06-18", dailyData)
+projection <- PredictMovingWindow("2017-07-05", dailyData)
 @
 
 
